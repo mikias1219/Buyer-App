@@ -1,0 +1,58 @@
+@import 'tailwindcss';
+
+/* Telegram-inspired design tokens */
+@theme {
+  --color-tg-bg: var(--tg-theme-bg-color, #efeff4);
+  --color-tg-secondary-bg: var(--tg-theme-secondary-bg-color, #ffffff);
+  --color-tg-text: var(--tg-theme-text-color, #000000);
+  --color-tg-hint: var(--tg-theme-hint-color, #8e8e93);
+  --color-tg-link: var(--tg-theme-link-color, #2481cc);
+  --color-tg-button: var(--tg-theme-button-color, #2481cc);
+  --color-tg-button-text: var(--tg-theme-button-text-color, #ffffff);
+  --color-tg-destructive: var(--tg-theme-destructive-text-color, #ff3b30);
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
+    Arial, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--tg-theme-bg-color, #efeff4);
+  color: var(--tg-theme-text-color, #000000);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+}
+
+/* Dark mode fallback when Telegram theme vars are present */
+html.dark body {
+  background-color: var(--tg-theme-bg-color, #0f0f0f);
+  color: var(--tg-theme-text-color, #ffffff);
+}
+
+/* Lightweight image loading placeholders */
+img {
+  content-visibility: auto;
+}
+
+/* Clearer tap targets & text in Telegram WebView */
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--tg-theme-button-color, #2481cc) 28%, transparent);
+}

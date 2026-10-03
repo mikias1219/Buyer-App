@@ -1,0 +1,118 @@
+import type { Product } from '../types/product';
+
+export const MOCK_PRODUCTS: Product[] = [
+  {
+    id: '1',
+    title: 'MacBook Air M1 8/256',
+    description:
+      '2020 MacBook Air M1, 8GB RAM, 256GB SSD. Battery health ~92%. Minor scuff on bottom case. Charger included.',
+    price: 45000,
+    category: 'Laptop',
+    condition: 'Good',
+    image_url:
+      'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=600&q=70',
+    seller_id: '1001',
+    seller_username: 'abebe_tech',
+    created_at: '2026-03-28T09:00:00.000Z',
+    status: 'active',
+    brand: 'Apple',
+    city: 'Addis Ababa',
+    listing_fee_etb: 100,
+    payment_id: null,
+  },
+  {
+    id: '2',
+    title: 'iPhone 13 128GB',
+    description:
+      'Unlocked iPhone 13, midnight, 128GB. Screen protector + case since day one. Face ID works.',
+    price: 32000,
+    category: 'Phone',
+    condition: 'Like New',
+    image_url:
+      'https://images.unsplash.com/photo-1632661674596-df8be070a5c5?w=600&q=70',
+    seller_id: '1002',
+    seller_username: 'selam_gadgets',
+    created_at: '2026-03-27T14:30:00.000Z',
+    status: 'active',
+    brand: 'Apple',
+    city: 'Addis Ababa',
+    listing_fee_etb: 100,
+    payment_id: null,
+  },
+  {
+    id: '3',
+    title: 'Dell XPS 13 i7',
+    description:
+      'Dell XPS 13, Intel i7, 16GB RAM, 512GB SSD. Windows 11 Pro. Great keyboard and sharp display.',
+    price: 38000,
+    category: 'Laptop',
+    condition: 'Good',
+    image_url:
+      'https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=600&q=70',
+    seller_id: '1003',
+    seller_username: 'dawit_deals',
+    created_at: '2026-03-26T11:15:00.000Z',
+    status: 'active',
+    brand: 'Dell',
+    city: 'Adama',
+    listing_fee_etb: 100,
+    payment_id: null,
+  },
+  {
+    id: '4',
+    title: 'Samsung Galaxy S22',
+    description:
+      'Galaxy S22 256GB, phantom black. Dual SIM. Original box + 25W charger.',
+    price: 22000,
+    category: 'Phone',
+    condition: 'Fair',
+    image_url:
+      'https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=600&q=70',
+    seller_id: '1004',
+    seller_username: 'helen_phones',
+    created_at: '2026-03-25T16:45:00.000Z',
+    status: 'active',
+    brand: 'Samsung',
+    city: 'Bahir Dar',
+    listing_fee_etb: 100,
+    payment_id: null,
+  },
+  {
+    id: '5',
+    title: 'iPad Air 5th Gen',
+    description:
+      'iPad Air (5th gen) 64GB Wi‑Fi, blue. Light usage — mostly for note-taking.',
+    price: 28000,
+    category: 'Tablet',
+    condition: 'Like New',
+    image_url:
+      'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=600&q=70',
+    seller_id: '1005',
+    seller_username: 'yordanos_store',
+    created_at: '2026-03-24T08:20:00.000Z',
+    status: 'active',
+    brand: 'Apple',
+    city: 'Addis Ababa',
+    listing_fee_etb: 100,
+    payment_id: null,
+  },
+  {
+    id: '6',
+    title: 'Sony WH-1000XM4',
+    description:
+      'Noise-cancelling headphones in excellent shape. Soft case included.',
+    price: 8500,
+    category: 'Accessory',
+    condition: 'Good',
+    image_url:
+      'https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=600&q=70',
+    seller_id: '1006',
+    seller_username: 'kidus_audio',
+    created_at: '2026-03-23T19:00:00.000Z',
+    status: 'active',
+    brand: 'Sony',
+    city: 'Hawassa',
+    listing_fee_etb: 100,
+    payment_id: null,
+  },
+];
