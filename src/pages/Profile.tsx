@@ -24,6 +24,7 @@ export function Profile() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- legacy screen, replaced in Phase 2
     setPhone(profile?.phone || '');
     setCity(profile?.city || '');
   }, [profile?.phone, profile?.city]);

@@ -61,6 +61,7 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- legacy screen, replaced in Phase 2
     void refresh();
   }, [refresh]);
 
@@ -69,14 +70,15 @@ export function ProductsProvider({ children }: { children: ReactNode }) {
     [allProducts],
   );
 
+  const username = user?.username;
   const myProducts = useMemo(
     () =>
       allProducts.filter(
         (p) =>
           p.seller_id === telegramId ||
-          (user?.username && p.seller_username === user.username),
+          (username && p.seller_username === username),
       ),
-    [allProducts, telegramId, user?.username],
+    [allProducts, telegramId, username],
   );
 
   const getProductById = useCallback(

@@ -11,9 +11,9 @@ export interface PlatformSettings {
 export const DEFAULT_SETTINGS: PlatformSettings = {
   id: 1,
   listing_fee_etb: 100,
-  telebirr_number: '0922578745',
-  telebirr_name: 'Mikias Abate',
-  admin_telegram_ids: ['1362166775'],
+  telebirr_number: '',
+  telebirr_name: '',
+  admin_telegram_ids: [],
   support_username: 'support',
   updated_at: new Date().toISOString(),
 };

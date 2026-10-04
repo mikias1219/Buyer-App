@@ -73,15 +73,12 @@ export async function submitPaymentReference(
   if (!isSupabaseConfigured || !supabase) {
     const all = readLocal();
     const idx = all.findIndex((p) => p.id === paymentId);
-    if (idx < 0) return null;
-    all[idx] = {
-      ...all[idx],
-      reference,
-      status: 'submitted',
-      updated_at: now,
-    };
+    const current = all[idx];
+    if (!current) return null;
+    const next: Payment = { ...current, reference, status: 'submitted', updated_at: now };
+    all[idx] = next;
     writeLocal(all);
-    return all[idx];
+    return next;
   }
 
   const { data, error } = await supabase
@@ -109,15 +106,12 @@ export async function updatePaymentStatus(
   if (!isSupabaseConfigured || !supabase) {
     const all = readLocal();
     const idx = all.findIndex((p) => p.id === paymentId);
-    if (idx < 0) return null;
-    all[idx] = {
-      ...all[idx],
-      status,
-      admin_note: adminNote,
-      updated_at: now,
-    };
+    const current = all[idx];
+    if (!current) return null;
+    const next: Payment = { ...current, status, admin_note: adminNote, updated_at: now };
+    all[idx] = next;
     writeLocal(all);
-    return all[idx];
+    return next;
   }
 
   const { data, error } = await supabase

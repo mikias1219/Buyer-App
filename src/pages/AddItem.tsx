@@ -39,6 +39,7 @@ function AddItemInner() {
 
   useEffect(() => {
     if (profile?.city) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- legacy screen, replaced in Phase 2
       setForm((prev) => ({ ...prev, city: prev.city || profile.city }));
     }
   }, [profile?.city]);

@@ -33,8 +33,8 @@ Point BotFather **Menu Button** at the tunnel HTTPS URL.
 update public.platform_settings
 set
   admin_telegram_ids = array['YOUR_TELEGRAM_NUMERIC_ID'],
-  telebirr_number = '0922578745',
-  telebirr_name = 'Mikias Abate',
+  telebirr_number = 'YOUR_TELEBIRR_NUMBER',
+  telebirr_name = 'YOUR_ACCOUNT_NAME',
   listing_fee_etb = 100
 where id = 1;
 ```

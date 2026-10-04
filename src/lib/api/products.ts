@@ -122,10 +122,12 @@ export async function updateProduct(
   if (!isSupabaseConfigured || !supabase) {
     const extras = readExtra();
     const idx = extras.findIndex((p) => p.id === id);
-    if (idx >= 0) {
-      extras[idx] = { ...extras[idx], ...patch };
+    const current = extras[idx];
+    if (current) {
+      const next: Product = { ...current, ...patch };
+      extras[idx] = next;
       writeExtra(extras);
-      return extras[idx];
+      return next;
     }
     // Allow updating mock catalog in-memory via extras copy
     const mock = MOCK_PRODUCTS.find((p) => p.id === id);

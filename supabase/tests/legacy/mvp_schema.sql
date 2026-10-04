@@ -1,8 +1,5 @@
--- ============================================================
--- TechMarket ET — ONE SQL for everything
--- Paste into Supabase → SQL Editor → Run
--- Telebirr: 0922578745 / Mikias Abate
--- ============================================================
+-- Fixture: the original MVP schema (ALL_IN_ONE.sql), personal data removed.
+-- Used only by scripts/test-db.sh to prove the legacy → v1 migration path.
 
 create extension if not exists "pgcrypto";
 
@@ -76,8 +73,8 @@ create index if not exists profiles_phone_idx on public.profiles (phone);
 create table if not exists public.platform_settings (
   id int primary key default 1 check (id = 1),
   listing_fee_etb numeric(12, 2) not null default 100 check (listing_fee_etb >= 0),
-  telebirr_number text not null default '0922578745',
-  telebirr_name text not null default 'Mikias Abate',
+  telebirr_number text not null default '',
+  telebirr_name text not null default '',
   admin_telegram_ids text[] not null default '{}',
   support_username text not null default 'support',
   updated_at timestamptz not null default now()
@@ -86,7 +83,7 @@ create table if not exists public.platform_settings (
 insert into public.platform_settings (
   id, listing_fee_etb, telebirr_number, telebirr_name, support_username, admin_telegram_ids
 )
-values (1, 100, '0922578745', 'Mikias Abate', 'support', array['1362166775'])
+values (1, 100, '', '', 'support', '{}')
 on conflict (id) do update
 set
   listing_fee_etb = excluded.listing_fee_etb,
