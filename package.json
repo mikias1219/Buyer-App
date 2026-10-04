@@ -12,7 +12,7 @@
     "build": "tsc -b && vite build",
     "build:e2e": "tsc -b && VITE_USE_MOCK=true vite build --mode e2e",
     "typecheck": "tsc -b",
-    "typecheck:functions": "deno check supabase/functions/*/index.ts",
+    "typecheck:functions": "DENO_NO_PACKAGE_JSON=1 deno check --node-modules-dir=auto --minimum-dependency-age=0 supabase/functions/*/index.ts",
     "lint": "eslint . --max-warnings=0",
     "test": "vitest run",
     "test:watch": "vitest",

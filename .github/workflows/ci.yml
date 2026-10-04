@@ -59,7 +59,10 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - run: deno check supabase/functions/*/index.ts
+      - name: Typecheck Edge Functions
+        env:
+          DENO_NO_PACKAGE_JSON: '1'
+        run: deno check --node-modules-dir=auto --minimum-dependency-age=0 supabase/functions/*/index.ts
 
   database:
     name: Migrations · RLS · business-rule tests
