@@ -1,13 +1,25 @@
-name: CI
+name: CI / CD
+
+# Push to main: all checks → migrate production DB → deploy Edge Functions → deploy web app (Vercel).
+# Pull requests: all checks only. Nothing touches production unless every check passes.
+#
+# Required secrets on the GitHub environment "production" (Settings → Environments → production):
+#   SUPABASE_DB_URL            session-pooler connection string (port 5432) incl. DB password
+#   SUPABASE_ACCESS_TOKEN      personal access token (supabase.com/dashboard/account/tokens)
+#   SUPABASE_PROJECT_REF       e.g. ysddtbbfyaealgyingiz
+#   SUPABASE_SERVICE_ROLE_KEY  only for the one-time legacy image move (skipped if absent)
+#   VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
+# Web app env vars (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, …) live in the Vercel project settings.
 
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   app:
@@ -25,7 +37,7 @@ jobs:
       - run: npm test
       - name: Build (no secrets needed; the app shows a config screen without them)
         run: npm run build
-      - name: No secrets or personal data in the bundle
+      - name: No secrets in the bundle
         run: |
           ! grep -rEl "service_role|SERVICE_ROLE|BOT_TOKEN|JWT_SECRET" dist/
 
@@ -40,11 +52,11 @@ jobs:
       - run: deno check supabase/functions/*/index.ts
 
   database:
-    name: Migrations · RLS · RPC tests
+    name: Migrations · RLS · business-rule tests
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: postgres:17
         env:
           POSTGRES_PASSWORD: postgres
         ports: ['5432:5432']
@@ -77,3 +89,74 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  deploy:
+    name: Deploy production (DB → functions → web)
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [app, functions, database, e2e]
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Check deploy secrets
+        run: |
+          missing=0
+          for v in SUPABASE_ACCESS_TOKEN SUPABASE_DB_URL SUPABASE_PROJECT_REF VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            if [ -z "${!v}" ]; then echo "::error::Missing secret $v"; missing=1; fi
+          done
+          exit $missing
+
+      - name: Pending migrations (dry run)
+        run: supabase db push --db-url "$SUPABASE_DB_URL" --dry-run
+
+      - name: Apply migrations
+        run: supabase db push --db-url "$SUPABASE_DB_URL"
+
+      - name: Copy legacy MVP data (idempotent; no-op once done)
+        run: |
+          sudo apt-get install -y -qq postgresql-client >/dev/null
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -q -f supabase/scripts/migrate_legacy.sql
+
+      - name: Move legacy images to Storage (idempotent; skipped without service key)
+        env:
+          SUPABASE_URL: https://${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then echo "SUPABASE_SERVICE_ROLE_KEY not set — skipping"; exit 0; fi
+          if psql "$SUPABASE_DB_URL" -tAc "select to_regprocedure('public.legacy_image_batch(int)') is not null" | grep -q t; then
+            node scripts/migrate-legacy-images.mjs
+          else
+            echo "No legacy images to move"
+          fi
+
+      - name: Deploy Edge Functions
+        run: |
+          for fn in auth-telegram verify-phone storage notify bot-webhook; do
+            supabase functions deploy "$fn" --project-ref "$SUPABASE_PROJECT_REF"
+          done
+
+      - name: Deploy web app to Vercel (production)
+        run: |
+          npm install -g vercel@latest
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          vercel build --prod --token="$VERCEL_TOKEN"
+          vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN" > url.txt
+          echo "Deployed: $(cat url.txt)" >> "$GITHUB_STEP_SUMMARY"
