@@ -18,7 +18,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:db": "bash scripts/test-db.sh",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test --pass-with-no-tests",
     "preview": "vite preview --host 0.0.0.0 --port 5173 --strictPort",
     "start:tg": "npm run build && npm run preview",
     "tunnel": "npx cloudflared tunnel --url http://127.0.0.1:5173 --no-autoupdate"

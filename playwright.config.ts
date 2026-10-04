@@ -4,8 +4,6 @@ import { defineConfig, devices } from '@playwright/test';
 // (`npm run build:e2e`), so CI needs no Supabase project or Telegram client.
 export default defineConfig({
   testDir: './tests/e2e',
-  // MVP may ship without e2e specs yet; do not fail CI on an empty suite.
-  passWithNoTests: true,
   fullyParallel: false,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
