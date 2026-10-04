@@ -1,0 +1,21 @@
+# Supabase CLI config (used by `supabase functions deploy` / local dev).
+project_id = "techmarket-et"
+
+# auth-telegram issues the JWT, so it cannot require one.
+[functions.auth-telegram]
+verify_jwt = false
+
+# Telegram calls the webhook without a Supabase JWT; it is protected by WEBHOOK_SECRET instead.
+[functions.bot-webhook]
+verify_jwt = false
+
+# Called by the scheduler with x-cron-secret.
+[functions.notify]
+verify_jwt = false
+
+# These verify our own HS256 token inside the function (JWT_SECRET).
+[functions.verify-phone]
+verify_jwt = false
+
+[functions.storage]
+verify_jwt = false
