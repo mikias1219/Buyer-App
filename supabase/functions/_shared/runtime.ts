@@ -2,10 +2,41 @@
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { bearerToken, verifyJwt, type AccessClaims } from './jwt.ts';
 
+export class MissingEnvError extends Error {
+  constructor(readonly variable: string) {
+    super(`Missing required env var ${variable}`);
+  }
+}
+
 export function env(name: string, required = true): string {
   const value = Deno.env.get(name) ?? '';
-  if (required && !value) throw new Error(`Missing required env var ${name}`);
+  if (required && !value) throw new MissingEnvError(name);
   return value;
+}
+
+/**
+ * Deno.serve with consistent error handling: a missing secret returns
+ * `{ error: 'server_misconfigured', missing: '<NAME>' }` (name only, never a value).
+ */
+export function serve(handler: (req: Request) => Promise<Response>): void {
+  Deno.serve(async (req) => {
+    try {
+      return await handler(req);
+    } catch (err) {
+      if (err instanceof MissingEnvError) {
+        console.error(err.message);
+        return new Response(JSON.stringify({ error: 'server_misconfigured', missing: err.variable }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders(req) },
+        });
+      }
+      console.error(err);
+      return new Response(JSON.stringify({ error: 'server_error' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(req) },
+      });
+    }
+  });
 }
 
 const allowedOrigins = (Deno.env.get('ALLOWED_ORIGINS') ?? '')

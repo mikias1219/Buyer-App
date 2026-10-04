@@ -2,9 +2,9 @@
 // `response` is the signed string returned by WebApp.requestContact. We verify Telegram's signature,
 // make sure the shared contact belongs to the caller, and mark the phone as verified.
 import { parseSharedContact, verifyTelegramData } from '../_shared/telegramAuth.ts';
-import { corsHeaders, env, fail, json, readJson, requireCaller, serviceClient, throttle } from '../_shared/runtime.ts';
+import { corsHeaders, env, fail, json, readJson, requireCaller, serve, serviceClient, throttle } from '../_shared/runtime.ts';
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(req) });
   if (req.method !== 'POST') return fail(req, 'method_not_allowed', 405);
 

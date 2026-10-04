@@ -3,12 +3,12 @@
 // carrying `tg_id`. The client then reads its profile with the get_me() RPC.
 import { parseInitUser, verifyTelegramData } from '../_shared/telegramAuth.ts';
 import { signJwt } from '../_shared/jwt.ts';
-import { corsHeaders, env, fail, json, readJson, serviceClient, throttle } from '../_shared/runtime.ts';
+import { corsHeaders, env, fail, json, readJson, serve, serviceClient, throttle } from '../_shared/runtime.ts';
 
 const MAX_INIT_AGE_SECONDS = 24 * 60 * 60;
 const TOKEN_TTL_SECONDS = 12 * 60 * 60;
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(req) });
   if (req.method !== 'POST') return fail(req, 'method_not_allowed', 405);
 

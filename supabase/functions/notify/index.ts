@@ -3,7 +3,7 @@
 //  2. Drain notifications_outbox with retries/backoff; permanent failures stop and mark bot_blocked.
 import { isPermanentTelegramError, renderNotification, type LinkConfig, type OutboxRow } from '../_shared/messages.ts';
 import { timingSafeEqual } from '../_shared/telegramAuth.ts';
-import { env, serviceClient } from '../_shared/runtime.ts';
+import { env, serve, serviceClient } from '../_shared/runtime.ts';
 
 interface TelegramResult {
   ok: boolean;
@@ -31,7 +31,7 @@ async function telegram(method: string, payload: Record<string, unknown>): Promi
   };
 }
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   const secret = req.headers.get('x-cron-secret') ?? '';
   const expected = env('CRON_SECRET');
   if (!secret || !timingSafeEqual(secret, expected)) return new Response('forbidden', { status: 403 });

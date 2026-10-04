@@ -4,7 +4,7 @@
 // and inline queries (@bot <text> → matching live listings).
 import { escapeHtml, formatEtb, toLang, type Lang } from '../_shared/messages.ts';
 import { timingSafeEqual } from '../_shared/telegramAuth.ts';
-import { env, serviceClient } from '../_shared/runtime.ts';
+import { env, serve, serviceClient } from '../_shared/runtime.ts';
 
 interface TgUser {
   id: number;
@@ -69,7 +69,7 @@ function startPathFromPayload(payload: string): string {
   return `/seller/${m[2]}`;
 }
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   const secret = req.headers.get('x-telegram-bot-api-secret-token') ?? '';
   if (!secret || !timingSafeEqual(secret, env('WEBHOOK_SECRET'))) return new Response('forbidden', { status: 403 });
 

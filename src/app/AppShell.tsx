@@ -12,7 +12,7 @@ import { BottomNav } from './BottomNav';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useTelegramBackButton } from './telegramHooks';
 
-const HIDE_NAV = [/^\/sell\/.+/, /^\/pay\//, /^\/admin/, /^\/verify-phone/, /^\/mine\/[^/]+\/edit/, /^\/ui/];
+const HIDE_NAV = [/^\/p\//, /^\/sell\/.+/, /^\/pay\//, /^\/admin/, /^\/verify-phone/, /^\/mine\/[^/]+\/edit/, /^\/ui/];
 
 export function AppShell() {
   const { t } = useTranslation();

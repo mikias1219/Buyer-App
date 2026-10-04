@@ -5,7 +5,7 @@ async function fillWizard(page: Page, title: string, price: string) {
   // Step 1 — photos
   await expect(page.getByRole('heading', { name: 'Add photos' })).toBeVisible();
   await page.locator('input[type=file]').setInputFiles({ name: 'phone.png', mimeType: 'image/png', buffer: PNG });
-  await expect(page.getByText('Cover')).toBeVisible();
+  await expect(page.getByText('Cover', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Next' }).click();
 
   // Step 2 — details (validation first)
@@ -65,7 +65,7 @@ test('drafts are saved per step and can be resumed', async ({ page }) => {
   await page.goto('/#/sell');
   await page.getByRole('button', { name: 'Share my phone number' }).click();
   await page.locator('input[type=file]').setInputFiles({ name: 'p.png', mimeType: 'image/png', buffer: PNG });
-  await expect(page.getByText('Cover')).toBeVisible();
+  await expect(page.getByText('Cover', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Next' }).click();
   await expect(page.getByRole('heading', { name: 'Describe your item' })).toBeVisible();
 

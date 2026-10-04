@@ -3,7 +3,7 @@
 //   { action: 'payment-proof', ext }              → signed upload URL in payment-proofs/<tg>/<uuid>.<ext>
 //   { action: 'view-proof', payment_id }          → short-lived signed download URL (payer or admin)
 // Bucket limits (2 MB, webp/jpeg/png) are enforced by Storage itself.
-import { corsHeaders, fail, json, readJson, requireCaller, serviceClient, throttle, userClient } from '../_shared/runtime.ts';
+import { corsHeaders, fail, json, readJson, requireCaller, serve, serviceClient, throttle, userClient } from '../_shared/runtime.ts';
 
 const EXT = new Set(['webp', 'jpg', 'jpeg', 'png']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -15,7 +15,7 @@ interface Body {
   ext?: string;
 }
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(req) });
   if (req.method !== 'POST') return fail(req, 'method_not_allowed', 405);
 
