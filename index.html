@@ -3,21 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
-    />
-    <meta name="theme-color" content="#ffffff" />
-    <title>TechMarket ET — Used Tech</title>
-    <!-- Telegram Mini App SDK -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0F766E" />
+    <meta name="description" content="Buy and sell used phones, laptops and gadgets safely in Ethiopia — inside Telegram." />
+    <title>TechMarket ET</title>
+    <!-- Telegram Mini App SDK (must load before the app bundle) -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
-  <body style="margin:0;background:#efeff4;color:#000;">
-    <div id="root">
-      <div style="display:flex;min-height:100vh;align-items:center;justify-content:center;font-family:system-ui,sans-serif;font-size:14px;color:#8e8e93;">
-        Loading TechMarket…
-      </div>
-    </div>
+  <body>
+    <div id="root"></div>
+    <noscript>TechMarket ET needs JavaScript.</noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
