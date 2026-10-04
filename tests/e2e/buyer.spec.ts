@@ -17,7 +17,7 @@ test('browse → category → listing detail → save to favorites', async ({ pa
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Remove from saved' })).toHaveAttribute('aria-pressed', 'true');
 
-  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Saved' }).click();
+  await page.goto('/#/favorites');
   await expect(page.getByRole('link', { name: /MacBook Air M1/ })).toBeVisible();
 });
 

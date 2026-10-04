@@ -23,7 +23,7 @@ async function fillWizard(page: Page, title: string, price: string) {
 
   // Step 3 — price
   await expect(page.getByRole('heading', { name: 'Set your price' })).toBeVisible();
-  await page.getByLabel('Price').fill(price);
+  await page.getByLabel('Price', { exact: true }).fill(price);
   await page.getByRole('button', { name: 'Next' }).click();
 
   // Step 4 — review
