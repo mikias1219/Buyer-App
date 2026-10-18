@@ -7,7 +7,7 @@ test('owner lands on the dashboard and sees the full navigation', async ({ page 
   await expect(page.getByText('Demo mode')).toBeVisible();
   const nav = page.getByRole('navigation', { name: 'Main navigation' });
   for (const name of ['Dashboard', 'Products', 'Sell', 'Sales', 'More']) {
-    await expect(nav.getByRole('link', { name })).toBeVisible();
+    await expect(nav.getByRole('link', { name, exact: true })).toBeVisible();
   }
   await nav.getByRole('link', { name: 'More' }).click();
   await expect(page.getByRole('link', { name: 'Team', exact: true })).toBeVisible();
