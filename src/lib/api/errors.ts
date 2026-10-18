@@ -39,6 +39,8 @@ export const KNOWN_ERROR_CODES = [
   'return_exceeds_sold',
   'last_owner',
   'conflict',
+  'duplicate_phone',
+  'exceeds_balance',
   'rate_limited',
   'session_expired',
   'network',

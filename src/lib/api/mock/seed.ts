@@ -1,7 +1,7 @@
 /**
  * Demo data for the in-memory mock backend (dev / e2e only). Fictional shop, fictional people.
  */
-import type { Role, ShopSettings, Unit } from '../types';
+import type { DebtPaymentMethod, ExpenseCategory, MovementType, PaymentMethod, Role, ShopSettings, Unit } from '../types';
 
 export interface MockUser {
   telegram_id: string;
@@ -41,11 +41,101 @@ export interface MockProduct {
   updated_at: string;
 }
 
+export interface MockMovement {
+  id: number;
+  product_id: string;
+  type: MovementType;
+  qty_delta: number;
+  unit_cost: number;
+  stock_after: number;
+  sale_id: string | null;
+  supplier: string;
+  reason: string;
+  actor_id: string | null;
+  created_at: string;
+}
+
+export interface MockSaleItem {
+  id: number;
+  product_id: string;
+  qty: number;
+  unit_price: number;
+  unit_cost: number;
+  discount: number;
+  line_total: number;
+  returned_qty: number;
+}
+
+export interface MockReturn {
+  id: string;
+  reason: string;
+  refund_amount: number;
+  cost_amount: number;
+  created_at: string;
+  items: Array<{ sale_item_id: number; qty: number; refund: number; cost: number }>;
+}
+
+export interface MockSale {
+  id: string;
+  receipt_no: number;
+  client_ref: string;
+  sold_at: string;
+  cashier_id: string;
+  customer_id: string | null;
+  payment_method: PaymentMethod;
+  subtotal: number;
+  discount: number;
+  total: number;
+  total_cost: number;
+  status: 'completed' | 'voided';
+  void_reason: string;
+  voided_at: string | null;
+  note: string;
+  items: MockSaleItem[];
+  returns: MockReturn[];
+}
+
+export interface MockExpense {
+  id: string;
+  spent_on: string;
+  category: ExpenseCategory;
+  amount: number;
+  note: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MockCustomer {
+  id: string;
+  name: string;
+  phone: string;
+  note: string;
+  archived: boolean;
+  created_at: string;
+}
+
+export interface MockCustomerPayment {
+  id: string;
+  customer_id: string;
+  amount: number;
+  method: DebtPaymentMethod;
+  note: string;
+  created_by: string;
+  created_at: string;
+}
+
 export interface MockDb {
   settings: Required<ShopSettings>;
   users: MockUser[];
   categories: MockCategory[];
   products: MockProduct[];
+  movements: MockMovement[];
+  sales: MockSale[];
+  expenses: MockExpense[];
+  customers: MockCustomer[];
+  customerPayments: MockCustomerPayment[];
+  seq: { movement: number; saleItem: number; receipt: number };
 }
 
 /** Mock identities (also used by tests/e2e/fixtures.ts). */
@@ -135,5 +225,32 @@ export function seedDatabase(): MockDb {
     ],
     categories,
     products,
+    movements: products
+      .filter((x) => x.stock_qty > 0)
+      .map((x, i) => ({
+        id: i + 1,
+        product_id: x.id,
+        type: 'opening' as const,
+        qty_delta: x.stock_qty,
+        unit_cost: x.avg_cost,
+        stock_after: x.stock_qty,
+        sale_id: null,
+        supplier: '',
+        reason: '',
+        actor_id: MOCK_USERS.owner,
+        created_at: iso(60),
+      })),
+    sales: [],
+    expenses: [
+      { id: uuid(301), spent_on: iso(12).slice(0, 10), category: 'rent', amount: 6000, note: 'Monthly rent', created_by: MOCK_USERS.owner, created_at: iso(12), updated_at: iso(12) },
+      { id: uuid(302), spent_on: iso(5).slice(0, 10), category: 'transport', amount: 350, note: 'Merkato pickup', created_by: MOCK_USERS.owner, created_at: iso(5), updated_at: iso(5) },
+      { id: uuid(303), spent_on: iso(2).slice(0, 10), category: 'utilities', amount: 480, note: 'Electricity', created_by: MOCK_USERS.owner, created_at: iso(2), updated_at: iso(2) },
+    ],
+    customers: [
+      { id: uuid(401), name: 'Almaz Kebede', phone: '+251911223344', note: '', archived: false, created_at: iso(20) },
+      { id: uuid(402), name: 'Yonas Tadesse', phone: '', note: 'Pays on Fridays', archived: false, created_at: iso(15) },
+    ],
+    customerPayments: [],
+    seq: { movement: 100, saleItem: 1, receipt: 1000 },
   };
 }

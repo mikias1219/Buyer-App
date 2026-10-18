@@ -227,6 +227,8 @@ export interface Sale {
   sold_at: string;
   cashier_id: string;
   cashier_name: string;
+  customer_id: string | null;
+  customer_name: string | null;
   payment_method: PaymentMethod;
   subtotal: number;
   discount: number;
@@ -340,6 +342,55 @@ export interface DashboardSummary {
   current: Kpis;
   previous: Kpis;
   stock: StockTotals;
+  /** Outstanding customer credit (all time). */
+  receivables: number;
+}
+
+// ─── Customers & import (Phase 6) ───────────────────────────────────
+
+export const DEBT_PAYMENT_METHODS = ['cash', 'telebirr', 'bank'] as const;
+export type DebtPaymentMethod = (typeof DEBT_PAYMENT_METHODS)[number];
+
+export interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+  note: string;
+  archived: boolean;
+  balance: number;
+  created_at: string;
+}
+
+export interface CustomerDetail extends Customer {
+  // owner only
+  sales?: Array<{ id: string; receipt_no: number; sold_at: string; total: number; refunded: number; status: SaleStatus }>;
+  payments?: Array<{ id: string; amount: number; method: DebtPaymentMethod; note: string; created_at: string; created_by_name: string | null }>;
+}
+
+export interface CustomersPage {
+  total: number;
+  total_owed: number;
+  items: Customer[];
+}
+
+export interface ImportRow {
+  name: string;
+  category?: string;
+  sku?: string;
+  barcode?: string;
+  unit?: Unit;
+  sell_price: number;
+  cost_price?: number;
+  opening_stock?: number;
+  reorder_level?: number;
+}
+
+export interface ImportResult {
+  saved: boolean;
+  valid: number;
+  new_categories: number;
+  total: number;
+  errors: Array<{ row: number; code: string; detail: string }>;
 }
 
 export type TrendBucket = 'day' | 'week' | 'month';
@@ -418,7 +469,14 @@ export interface RpcMap {
   low_stock: [{ p_limit?: number }, LowStockItem[]];
   // sales
   record_sale: [
-    { p_client_ref: string; p_items: SaleItemInput[]; p_payment_method: PaymentMethod; p_discount?: number; p_note?: string },
+    {
+      p_client_ref: string;
+      p_items: SaleItemInput[];
+      p_payment_method: PaymentMethod;
+      p_discount?: number;
+      p_note?: string;
+      p_customer_id?: string | null;
+    },
     Sale,
   ];
   void_sale: [{ p_id: string; p_reason: string }, Sale];
@@ -443,6 +501,13 @@ export interface RpcMap {
     { totals: StockTotals; by_category: Array<{ category_id: string | null; name: string | null; product_count: number; units: number; value_cost: number; value_retail: number }> },
   ];
   export_sales_lines: [{ p_filters?: ReportFilters }, ExportLine[]];
+  // customers & import
+  list_customers: [{ p_q?: string | null; p_owing_only?: boolean; p_limit?: number; p_offset?: number }, CustomersPage];
+  get_customer: [{ p_id: string }, CustomerDetail];
+  upsert_customer: [{ p_input: { id?: string; name: string; phone?: string; note?: string } }, Customer];
+  set_customer_archived: [{ p_id: string; p_archived: boolean }, Customer];
+  record_customer_payment: [{ p_customer_id: string; p_amount: number; p_method: DebtPaymentMethod; p_note?: string }, Customer];
+  import_products: [{ p_rows: ImportRow[]; p_dry_run: boolean }, ImportResult];
 }
 
 export type RpcName = keyof RpcMap;
