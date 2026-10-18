@@ -1,13 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  buildShareUrl,
-  getStartParam,
-  isInTelegram,
-  parseStartParam,
-  requestContact,
-  showMainButton,
-  startParamToPath,
-} from './telegram';
+import { buildShareUrl, isInTelegram, requestContact, showMainButton } from './telegram';
 
 function stubWindow(webApp: unknown, search = '') {
   vi.stubGlobal('window', {
@@ -20,33 +12,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('parseStartParam', () => {
-  it('parses product, category and seller payloads', () => {
-    expect(parseStartParam('p_6f1c2a4e-1111-4222-8333-944455556666')).toEqual({
-      kind: 'product',
-      id: '6f1c2a4e-1111-4222-8333-944455556666',
-    });
-    expect(parseStartParam('c_Phone')).toEqual({ kind: 'category', id: 'Phone' });
-    expect(parseStartParam('s_abc123')).toEqual({ kind: 'seller', id: 'abc123' });
-  });
-
-  it('rejects unknown prefixes, empty ids and injection attempts', () => {
-    expect(parseStartParam(null)).toBeNull();
-    expect(parseStartParam('')).toBeNull();
-    expect(parseStartParam('x_1')).toBeNull();
-    expect(parseStartParam('p_')).toBeNull();
-    expect(parseStartParam('p_../../admin')).toBeNull();
-    expect(parseStartParam('c_<script>')).toBeNull();
-  });
-
-  it('maps params to routes', () => {
-    expect(startParamToPath({ kind: 'product', id: 'a1' })).toBe('/p/a1');
-    expect(startParamToPath({ kind: 'category', id: 'Phone' })).toBe('/search?category=Phone');
-    expect(startParamToPath({ kind: 'seller', id: 's9' })).toBe('/seller/s9');
-    expect(startParamToPath(null)).toBeNull();
-  });
-});
-
 describe('browser fallbacks', () => {
   it('is not "in Telegram" without signed initData', () => {
     stubWindow(undefined);
@@ -55,11 +20,6 @@ describe('browser fallbacks', () => {
     expect(isInTelegram()).toBe(false);
     stubWindow({ initData: 'query_id=1&hash=abc' });
     expect(isInTelegram()).toBe(true);
-  });
-
-  it('reads startapp from the URL when the SDK has none', () => {
-    stubWindow({ initData: '', initDataUnsafe: {} }, '?tgWebAppStartParam=p_abc');
-    expect(getStartParam()).toEqual({ kind: 'product', id: 'abc' });
   });
 
   it('main button is a no-op outside Telegram', () => {

@@ -9,7 +9,7 @@ export interface Backend {
   readonly kind: 'supabase' | 'mock';
   rpc<K extends RpcName>(name: K, args: RpcArgs<K>): Promise<RpcResult<K>>;
   fn<K extends FnName>(name: K, body: FnMap[K][0], opts?: { auth?: boolean }): Promise<FnMap[K][1]>;
-  uploadToSignedUrl(bucket: 'listing-images' | 'payment-proofs', path: string, token: string, file: Blob): Promise<void>;
+  uploadToSignedUrl(bucket: 'product-images', path: string, token: string, file: Blob): Promise<void>;
   imageUrl(path: string, opts?: { width?: number }): string;
 }
 

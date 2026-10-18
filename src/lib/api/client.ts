@@ -18,7 +18,7 @@ export async function callFunction<K extends FnName>(name: K, body: FnMap[K][0],
   return (await requireBackend()).fn(name, body, opts);
 }
 
-/** Public URL of a listing image (sync; the backend is resolved during boot). */
+/** Public URL of a product image (sync; the backend is resolved during boot). */
 export function imageUrl(path: string | null | undefined, width?: number): string | null {
   if (!path || !resolved) return null;
   return resolved.imageUrl(path, width ? { width } : undefined);

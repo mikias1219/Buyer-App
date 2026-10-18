@@ -17,39 +17,32 @@ export class AppError extends Error {
   }
 }
 
-/** Codes the backend may raise; anything else is reported as `generic`. */
+/** Codes the backend may raise (docs/BACKEND.md §7) plus transport codes; anything else is `generic`. */
 export const KNOWN_ERROR_CODES = [
   'not_authenticated',
-  'not_authorized',
   'banned',
+  'no_access',
+  'not_authorized',
   'not_found',
   'invalid_input',
-  'illegal_transition',
-  'listing_incomplete',
-  'listing_locked',
-  'listing_not_active',
-  'listing_expired',
-  'phone_not_verified',
-  'banned_words',
-  'max_active_listings',
+  'invalid_quantity',
+  'insufficient_stock',
+  'product_unavailable',
+  'below_cost',
+  'customer_required',
+  'duplicate_sku',
+  'duplicate_barcode',
+  'duplicate_category',
+  'has_history',
+  'no_change',
+  'invalid_transition',
+  'return_exceeds_sold',
+  'last_owner',
+  'conflict',
   'rate_limited',
-  'duplicate_reference',
-  'invalid_reference_format',
-  'payment_already_submitted',
-  'payment_required',
-  'reason_required',
-  'own_listing',
-  'not_reviewable',
-  'already_reviewed',
-  'boost_unavailable',
-  'cannot_target_self',
-  'cannot_ban_admin',
-  'user_banned',
   'session_expired',
   'network',
   'not_configured',
-  'contact_not_yours',
-  'invalid_contact',
   'unsupported',
   'upload_failed',
   'generic',
@@ -76,9 +69,4 @@ export function toAppError(err: unknown): AppError {
     return new AppError('generic', message || code);
   }
   return new AppError('generic', String(err));
-}
-
-/** Parse "a,b,c" detail of listing_incomplete into field names. */
-export function missingFields(error: AppError): string[] {
-  return error.code === 'listing_incomplete' && error.detail ? error.detail.split(',').filter(Boolean) : [];
 }

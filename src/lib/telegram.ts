@@ -183,48 +183,6 @@ export function setChromeColor(color: string): void {
   }
 }
 
-// ─── Deep links ─────────────────────────────────────────────────────
-
-export type StartParam =
-  | { kind: 'product'; id: string }
-  | { kind: 'category'; id: string }
-  | { kind: 'seller'; id: string };
-
-const START_PARAM_RE = /^([pcs])_([A-Za-z0-9-]{1,64})$/;
-
-export function parseStartParam(input?: string | null): StartParam | null {
-  if (!input) return null;
-  const match = START_PARAM_RE.exec(input.trim());
-  if (!match) return null;
-  const [, prefix, id] = match;
-  if (!id) return null;
-  if (prefix === 'p') return { kind: 'product', id };
-  if (prefix === 'c') return { kind: 'category', id };
-  return { kind: 'seller', id };
-}
-
-export function getStartParam(): StartParam | null {
-  const tg = getWebApp();
-  const fromSdk = tg?.initDataUnsafe?.start_param;
-  if (fromSdk) return parseStartParam(fromSdk);
-  if (typeof window === 'undefined') return null;
-  // Direct links (t.me/<bot>/<app>?startapp=…) also pass tgWebAppStartParam in the URL.
-  const params = new URLSearchParams(window.location.search);
-  return parseStartParam(params.get('tgWebAppStartParam') ?? params.get('startapp'));
-}
-
-export function startParamToPath(param: StartParam | null): string | null {
-  if (!param) return null;
-  switch (param.kind) {
-    case 'product':
-      return `/p/${param.id}`;
-    case 'category':
-      return `/search?category=${encodeURIComponent(param.id)}`;
-    case 'seller':
-      return `/seller/${param.id}`;
-  }
-}
-
 // ─── Buttons ────────────────────────────────────────────────────────
 
 export interface MainButtonOptions {

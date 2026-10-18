@@ -80,9 +80,9 @@ export function createSupabaseBackend(): Backend {
       const base = `${supabaseUrl}/storage/v1`;
       // Image transformations (Supabase Pro) resize on the fly; plain object URL otherwise.
       if (opts?.width && import.meta.env.VITE_SUPABASE_IMAGE_TRANSFORMS === 'true') {
-        return `${base}/render/image/public/listing-images/${path}?width=${opts.width}&quality=75&resize=contain`;
+        return `${base}/render/image/public/product-images/${path}?width=${opts.width}&quality=75&resize=contain`;
       }
-      return `${base}/object/public/listing-images/${path}`;
+      return `${base}/object/public/product-images/${path}`;
     },
   };
 }

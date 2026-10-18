@@ -1,539 +1,448 @@
 /**
- * Domain types mirroring the JSON returned by the database RPCs (supabase/migrations/04xx–07xx).
+ * Domain types mirroring the JSON returned by the shop RPCs (supabase/migrations/20261018…).
  * Keep in sync with the SQL; the mock backend implements the same contract.
+ * Numbers arrive as JSON numbers (Postgres numeric → JSON number via jsonb).
  */
 
-export const CATEGORIES = ['phone', 'laptop', 'tablet', 'desktop', 'watch', 'audio', 'accessory', 'other'] as const;
-export type Category = (typeof CATEGORIES)[number];
-
-export const CONDITIONS = ['new', 'like_new', 'good', 'fair', 'for_parts'] as const;
-export type Condition = (typeof CONDITIONS)[number];
-
-export const LISTING_STATUSES = [
-  'draft',
-  'pending_payment',
-  'payment_submitted',
-  'in_review',
-  'active',
-  'paused',
-  'sold',
-  'expired',
-  'rejected',
-  'removed',
-] as const;
-export type ListingStatus = (typeof LISTING_STATUSES)[number];
-
-export type PaymentStatus = 'pending' | 'submitted' | 'confirmed' | 'rejected' | 'refunded';
-export type PaymentKind = 'listing' | 'boost' | 'renew';
-export type Role = 'user' | 'moderator' | 'admin';
+export type Role = 'user' | 'staff' | 'owner';
 export type Language = 'en' | 'am';
 
-export const LISTING_REJECT_REASONS = ['prohibited_item', 'bad_photos', 'misleading_price', 'duplicate', 'other'] as const;
-export const PAYMENT_REJECT_REASONS = ['invalid_reference', 'wrong_amount', 'duplicate', 'other'] as const;
-export type ListingRejectReason = (typeof LISTING_REJECT_REASONS)[number];
-export type PaymentRejectReason = (typeof PAYMENT_REJECT_REASONS)[number];
-export type RejectReason = ListingRejectReason | PaymentRejectReason;
+export const UNITS = ['piece', 'pack', 'box', 'kg', 'g', 'litre', 'metre'] as const;
+export type Unit = (typeof UNITS)[number];
+/** Units sold in whole numbers only (SPEC A3.14). */
+export const WHOLE_UNITS: readonly Unit[] = ['piece', 'pack', 'box'];
 
-export const REPORT_REASONS = ['scam', 'prohibited', 'wrong_info', 'duplicate', 'offensive', 'already_sold', 'other'] as const;
-export type ReportReason = (typeof REPORT_REASONS)[number];
+export const STOCK_STATUSES = ['ok', 'low', 'out'] as const;
+export type StockStatus = (typeof STOCK_STATUSES)[number];
 
-export type ListingFlag = 'price_low' | 'price_high' | 'duplicate_image';
-export type Specs = Record<string, string | number | boolean>;
-export type SortOption = 'newest' | 'price_asc' | 'price_desc';
+export const PAYMENT_METHODS = ['cash', 'telebirr', 'bank', 'credit'] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
-export interface Rating {
-  rating: number | null;
-  count: number;
-}
+export const EXPENSE_CATEGORIES = ['rent', 'salary', 'transport', 'utilities', 'supplies', 'tax', 'other'] as const;
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
 
-export interface ListingCard {
-  id: string;
-  title: string;
-  price: number | null;
-  category: Category | null;
-  brand: string;
-  model: string;
-  condition: Condition | null;
-  city: string;
-  negotiable: boolean;
-  exchange: boolean;
-  is_featured: boolean;
-  published_at: string | null;
-  cover_path: string | null;
-  seller_verified: boolean;
-}
+export const MOVEMENT_TYPES = ['opening', 'purchase', 'sale', 'return', 'void', 'adjustment', 'damage'] as const;
+export type MovementType = (typeof MOVEMENT_TYPES)[number];
 
-export interface SearchResult {
-  items: ListingCard[];
-  total: number;
-  next_offset: number | null;
-}
+export type ProductStatus = 'active' | 'archived';
+export type SaleStatus = 'completed' | 'voided';
 
-export interface HomeFeed {
-  featured: ListingCard[];
-  newest: ListingCard[];
-  near_you: ListingCard[];
-  under_20k: ListingCard[];
-  category_counts: Partial<Record<Category, number>>;
-}
+// ─── Session, settings, team ────────────────────────────────────────
 
-export interface SellerCard {
-  public_id: string;
-  name: string;
-  verified: boolean;
-  member_since: string;
-  rating: Rating;
-  active_count: number;
-}
-
-export interface PaymentRef {
-  id: string;
-  kind: PaymentKind;
-  status: PaymentStatus;
-  amount_etb: number;
-}
-
-export interface ListingManage {
-  status: ListingStatus;
-  reject_reason: RejectReason | null;
-  reject_note: string;
-  flags: ListingFlag[];
-  is_free: boolean;
-  period_paid: boolean;
-  renew_count: number;
-  boosted_until: string | null;
-  leads_count: number;
-  open_payment: PaymentRef | null;
-  last_payment: (PaymentRef & { reject_reason: PaymentRejectReason | null; admin_note: string }) | null;
-}
-
-export interface ListingDetail {
-  id: string;
-  title: string;
-  description: string;
-  price: number | null;
-  category: Category | null;
-  brand: string;
-  model: string;
-  condition: Condition | null;
-  city: string;
-  specs: Specs;
-  negotiable: boolean;
-  exchange: boolean;
-  status: ListingStatus;
-  published_at: string | null;
-  expires_at: string | null;
-  is_featured: boolean;
-  views: number;
-  images: string[];
-  favorites_count: number;
-  is_owner: boolean;
-  is_favorite: boolean;
-  can_review: boolean;
-  seller: SellerCard;
-  manage?: ListingManage;
-}
-
-export interface MyListing {
-  id: string;
-  title: string;
-  price: number | null;
-  category: Category | null;
-  brand: string;
-  model: string;
-  condition: Condition | null;
-  city: string;
-  status: ListingStatus;
-  reject_reason: RejectReason | null;
-  reject_note: string;
-  flags: ListingFlag[];
-  is_free: boolean;
-  renew_count: number;
-  published_at: string | null;
-  expires_at: string | null;
-  updated_at: string;
-  is_featured: boolean;
-  boosted_until: string | null;
-  cover_path: string | null;
-  views: number;
-  favorites_count: number;
-  leads_count: number;
-  open_payment: PaymentRef | null;
-}
-
-export interface ListingImage {
-  path: string;
-  hash: string;
-}
-
-export interface DraftListing {
-  id: string;
-  title: string;
-  description: string;
-  price: number | null;
-  category: Category | null;
-  brand: string;
-  model: string;
-  condition: Condition | null;
-  city: string;
-  specs: Specs;
-  negotiable: boolean;
-  exchange: boolean;
-  status: ListingStatus;
-  reject_reason: RejectReason | null;
-  reject_note: string;
-  published_at: string | null;
-  is_free: boolean;
-  period_paid: boolean;
-  images: ListingImage[];
-  missing: string[];
-}
-
-export interface ListingInput {
-  title?: string;
-  description?: string;
-  price?: number | null;
-  category?: Category | null;
-  brand?: string;
-  model?: string;
-  condition?: Condition | null;
-  city?: string;
-  specs?: Specs;
-  negotiable?: boolean;
-  exchange?: boolean;
-}
-
-export interface SubmitResult {
-  status: ListingStatus;
-  is_free: boolean;
-  payment_id: string | null;
-  amount_etb: number | null;
-}
-
-export interface FavoriteItem extends ListingCard {
-  available: boolean;
-  status: 'active' | 'sold' | 'unavailable';
-}
-
-export interface ContactResult {
-  username: string | null;
-  telegram_url: string | null;
-  phone: string | null;
-  seller_name: string;
-}
-
-export interface SellerProfile {
-  public_id: string;
-  name: string;
-  verified: boolean;
-  member_since: string;
-  city: string;
-  rating: Rating;
-  sold_count: number;
-  listings: ListingCard[];
-  reviews: Array<{ rating: number; comment: string; created_at: string; reviewer_name: string }>;
+export interface ShopSettings {
+  shop_name: string;
+  currency: string;
+  timezone: string;
+  allow_negative_stock: boolean;
+  staff_can_restock: boolean;
+  staff_can_sell_below_cost: boolean;
+  receipt_footer: string;
+  // owner only
+  default_reorder_level?: number;
+  slow_mover_days?: number;
+  daily_summary_enabled?: boolean;
+  daily_summary_time?: string;
+  low_stock_alerts?: boolean;
+  updated_at?: string;
 }
 
 export interface Me {
-  telegram_id: string;
   public_id: string;
   username: string;
   first_name: string;
   last_name: string;
   photo_url: string;
-  phone_verified: boolean;
-  phone_masked: string | null;
-  city: string;
+  language: Language;
   role: Role;
   is_banned: boolean;
-  ban_reason: string;
-  is_verified_seller: boolean;
-  language: Language;
-  free_listings_left: number;
-  open_listings: number;
-  created_at: string;
+  /** Full settings for members; only `shop_name` for users without access. */
+  settings: Partial<ShopSettings> & { shop_name: string };
 }
 
-export interface PublicSettings {
-  listing_fee_etb: number;
-  free_listings_quota: number;
-  listing_duration_days: number;
-  max_active_listings: number;
-  boost_price_etb: number;
-  boost_days: number;
-  payment_sla_minutes: number;
-  contact_daily_limit: number;
-  telebirr_number: string;
-  telebirr_name: string;
-  support_username: string;
-  bot_username: string;
-  mini_app_short_name: string;
-}
-
-export interface PaymentDetail {
-  id: string;
-  kind: PaymentKind;
-  status: PaymentStatus;
-  amount_etb: number;
-  reference: string;
-  has_screenshot: boolean;
-  reject_reason: PaymentRejectReason | null;
-  admin_note: string;
-  submitted_at: string | null;
-  reviewed_at: string | null;
-  created_at: string;
-  product: { id: string; title: string; price: number | null; status: ListingStatus; cover_path: string | null };
-  pay_to?: { telebirr_number: string; telebirr_name: string };
-  sla_minutes?: number;
-}
-
-// ─── Admin ──────────────────────────────────────────────────────────
-
-export interface AdminDashboard {
-  role: Role;
-  in_review: number;
-  oldest_in_review_at: string | null;
-  open_reports: number;
-  new_listings_today: number;
-  live_listings: number;
-  payments_waiting?: number;
-  oldest_payment_at?: string | null;
-  sla_minutes?: number;
-  revenue_7d?: number;
-  revenue_30d?: number;
-  revenue_by_day?: Array<{ day: string; amount: number }>;
-  funnel_30d?: { created: number; submitted: number; paid: number; live: number };
-  top_categories?: Array<{ category: Category; count: number }>;
-  users_total?: number;
-  users_today?: number;
-  outbox_failed?: number;
-}
-
-export interface QueueItem {
-  id: string;
-  title: string;
-  description: string;
-  price: number | null;
-  category: Category | null;
-  brand: string;
-  model: string;
-  condition: Condition | null;
-  city: string;
-  specs: Specs;
-  negotiable: boolean;
-  exchange: boolean;
-  flags: ListingFlag[];
-  is_free: boolean;
-  waiting_since: string;
-  was_live: boolean;
-  median_price: number | null;
-  images: string[];
-  seller: {
-    public_id: string;
-    name: string;
-    username: string;
-    verified: boolean;
-    member_since: string;
-    phone_verified: boolean;
-    rating: Rating;
-    live_count: number;
-    sold_count: number;
-    past_rejections: number;
-    open_reports: number;
-  };
-}
-
-export interface AdminPayment {
-  id: string;
-  kind: PaymentKind;
-  status: PaymentStatus;
-  amount_etb: number;
-  reference: string;
-  has_screenshot: boolean;
-  reject_reason: PaymentRejectReason | null;
-  admin_note: string;
-  submitted_at: string | null;
-  reviewed_at: string | null;
-  created_at: string;
-  duplicate_count: number;
-  product: { id: string; title: string; price: number | null; status: ListingStatus; category: Category | null; cover_path: string | null };
-  seller: { name: string; username: string; public_id: string; verified: boolean };
-}
-
-export interface AdminReport {
-  id: string;
-  target_type: 'product' | 'user';
-  reason: ReportReason;
-  note: string;
-  status: 'open' | 'dismissed' | 'actioned';
-  resolution: string;
-  created_at: string;
-  reporter_name: string;
-  same_target_open: number;
-  product: {
-    id: string;
-    title: string;
-    price: number | null;
-    status: ListingStatus;
-    cover_path: string | null;
-    seller_name: string;
-    seller_public_id: string;
-  } | null;
-  user: { public_id: string; name: string; username: string; is_banned: boolean } | null;
-}
-
-export interface AdminUser {
+export interface Member {
   public_id: string;
-  telegram_id: string;
+  name: string;
   username: string;
-  first_name: string;
-  last_name: string;
-  phone: string;
-  phone_verified: boolean;
-  city: string;
+  photo_url: string;
   role: Role;
   is_banned: boolean;
-  ban_reason: string;
-  is_verified_seller: boolean;
-  language: Language;
-  created_at: string;
   last_seen_at: string;
-  live_count: number;
-  listing_count: number;
-  rating: Rating;
-}
-
-export interface AdminUserDetail extends AdminUser {
-  listings: Array<{ id: string; title: string; price: number | null; status: ListingStatus; updated_at: string }>;
-  payments: Array<{ id: string; kind: PaymentKind; status: PaymentStatus; amount_etb: number; reference: string; created_at: string }>;
-  reports_against: number;
-  reports_filed: number;
-}
-
-export interface AdminListing {
-  id: string;
-  title: string;
-  price: number | null;
-  status: ListingStatus;
-  category: Category | null;
-  city: string;
-  flags: ListingFlag[];
-  views: number;
-  updated_at: string;
-  published_at: string | null;
-  expires_at: string | null;
-  cover_path: string | null;
-  seller: { name: string; username: string; public_id: string };
-}
-
-export interface AdminSettings {
-  listing_fee_etb: number;
-  free_listings_quota: number;
-  listing_duration_days: number;
-  reminder_days_before: number;
-  max_active_listings: number;
-  boost_price_etb: number;
-  boost_days: number;
-  contact_daily_limit: number;
-  payment_sla_minutes: number;
-  telebirr_number: string;
-  telebirr_name: string;
-  support_username: string;
-  bot_username: string;
-  mini_app_short_name: string;
-  channel_id: string;
-  channel_autopost: boolean;
-  banned_words: string[];
-  updated_at: string;
-  updated_by: string | null;
-}
-
-export interface AuditEntry {
-  id: number;
-  action: string;
-  target_type: string;
-  target_id: string;
-  before: Record<string, unknown> | null;
-  after: Record<string, unknown> | null;
   created_at: string;
-  actor: { name: string | null; username: string | null; public_id: string | null };
+}
+
+export interface Team {
+  me: string;
+  members: Member[];
+  requests: Member[];
+}
+
+export type SettingsInput = Partial<
+  Pick<
+    ShopSettings,
+    | 'shop_name'
+    | 'timezone'
+    | 'default_reorder_level'
+    | 'allow_negative_stock'
+    | 'staff_can_restock'
+    | 'staff_can_sell_below_cost'
+    | 'slow_mover_days'
+    | 'daily_summary_enabled'
+    | 'daily_summary_time'
+    | 'low_stock_alerts'
+    | 'receipt_footer'
+  >
+>;
+
+// ─── Catalog & stock ────────────────────────────────────────────────
+
+export interface Category {
+  id: string;
+  name: string;
+  sort: number;
+  archived: boolean;
+  product_count: number;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  category_id: string | null;
+  category_name: string | null;
+  sku: string | null;
+  barcode: string | null;
+  unit: Unit;
+  sell_price: number;
+  stock_qty: number;
+  reorder_level: number;
+  stock_status: StockStatus;
+  image_path: string;
+  notes: string;
+  status: ProductStatus;
+  created_at: string;
+  updated_at: string;
+  // owner only
+  avg_cost?: number;
+  margin?: number;
+  margin_pct?: number | null;
+  stock_value_cost?: number;
+  stock_value_retail?: number;
+  // sort=best_selling only
+  sold_30d?: number;
+}
+
+export interface ProductInput {
+  name?: string;
+  category_id?: string | null;
+  sku?: string | null;
+  barcode?: string | null;
+  unit?: Unit;
+  sell_price?: number;
+  cost_price?: number;
+  reorder_level?: number;
+  image_path?: string;
+  notes?: string;
+  /** create only */
+  opening_stock?: number;
+}
+
+export const PRODUCT_SORTS = ['name', 'stock_asc', 'stock_desc', 'best_selling', 'margin', 'newest'] as const;
+export type ProductSort = (typeof PRODUCT_SORTS)[number];
+
+export interface ProductFilters {
+  q?: string;
+  category_id?: string;
+  stock?: StockStatus;
+  status?: ProductStatus | 'all';
+  sort?: ProductSort;
+}
+
+export interface ProductPage {
+  total: number;
+  items: Product[];
+}
+
+export interface Movement {
+  id: number;
+  type: MovementType;
+  qty_delta: number;
+  unit_cost: number;
+  stock_after: number;
+  sale_id: string | null;
+  receipt_no: number | null;
+  supplier: string;
+  reason: string;
+  created_at: string;
+  actor_name: string | null;
+}
+
+export interface LowStockItem {
+  id: string;
+  name: string;
+  unit: Unit;
+  stock_qty: number;
+  reorder_level: number;
+  stock_status: StockStatus;
+}
+
+export interface RestockItem {
+  product_id: string;
+  qty: number;
+  unit_cost?: number;
+}
+
+// ─── Sales ──────────────────────────────────────────────────────────
+
+export interface SaleItemInput {
+  product_id: string;
+  qty: number;
+  discount?: number;
+}
+
+export interface SaleItem {
+  id: number;
+  product_id: string;
+  product_name: string;
+  unit: Unit;
+  qty: number;
+  unit_price: number;
+  discount: number;
+  line_total: number;
+  returned_qty: number;
+  // owner only
+  unit_cost?: number;
+  line_profit?: number;
+}
+
+export interface SaleReturn {
+  id: string;
+  reason: string;
+  refund_amount: number;
+  created_at: string;
+  items: Array<{ sale_item_id: number; qty: number }>;
+}
+
+export interface Sale {
+  id: string;
+  receipt_no: number;
+  sold_at: string;
+  cashier_id: string;
+  cashier_name: string;
+  payment_method: PaymentMethod;
+  subtotal: number;
+  discount: number;
+  total: number;
+  status: SaleStatus;
+  note: string;
+  void_reason: string;
+  voided_at: string | null;
+  refunded: number;
+  items: SaleItem[];
+  returns: SaleReturn[];
+  // owner only
+  total_cost?: number;
+  profit?: number;
+}
+
+export interface SaleSummary {
+  id: string;
+  receipt_no: number;
+  sold_at: string;
+  cashier_name: string;
+  payment_method: PaymentMethod;
+  total: number;
+  status: SaleStatus;
+  item_count: number;
+  has_returns: boolean;
+  profit?: number;
+}
+
+export interface SalesFilters {
+  from?: string;
+  to?: string;
+  payment_methods?: PaymentMethod[];
+  cashier_ids?: string[];
+  product_ids?: string[];
+  status?: SaleStatus | 'all';
+  q?: string;
+}
+
+export interface SalesPage {
+  total_count: number;
+  total_amount: number;
+  items: SaleSummary[];
+}
+
+// ─── Expenses & reports ─────────────────────────────────────────────
+
+export interface Expense {
+  id: string;
+  spent_on: string;
+  category: ExpenseCategory;
+  amount: number;
+  note: string;
+  created_by_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExpenseInput {
+  spent_on?: string;
+  category?: ExpenseCategory;
+  amount?: number;
+  note?: string;
+}
+
+export interface ExpensesPage {
+  total_amount: number;
+  total_count: number;
+  by_category: Array<{ category: ExpenseCategory; amount: number }>;
+  items: Expense[];
+}
+
+/** One filter shape for every report (local dates, inclusive). */
+export interface ReportFilters {
+  from?: string;
+  to?: string;
+  category_ids?: string[];
+  product_ids?: string[];
+  payment_methods?: PaymentMethod[];
+  cashier_ids?: string[];
+}
+
+export interface Kpis {
+  revenue: number;
+  cogs: number;
+  gross_profit: number;
+  margin_pct: number | null;
+  expenses: number;
+  stock_loss: number;
+  adjustments_value: number;
+  net_profit: number;
+  items_sold: number;
+  sales_count: number;
+  avg_sale: number | null;
+  returns_amount: number;
+}
+
+export interface StockTotals {
+  product_count: number;
+  units: number;
+  value_cost: number;
+  value_retail: number;
+  potential_profit: number;
+  low_count: number;
+  out_count: number;
+}
+
+export interface DashboardSummary {
+  range: { from: string; to: string; previous_from: string; previous_to: string };
+  scoped: boolean;
+  current: Kpis;
+  previous: Kpis;
+  stock: StockTotals;
+}
+
+export type TrendBucket = 'day' | 'week' | 'month';
+export interface TrendPoint {
+  bucket: string;
+  revenue: number;
+  profit: number;
+  items: number;
+  sales: number;
+}
+
+export interface ProductPerformance {
+  product_id: string;
+  name: string;
+  unit: Unit;
+  category_name: string | null;
+  qty: number;
+  revenue: number;
+  cost: number;
+  profit: number;
+  margin_pct: number | null;
+  sales: number;
+  stock_qty: number;
+}
+
+export interface SlowMover {
+  product_id: string;
+  name: string;
+  unit: Unit;
+  stock_qty: number;
+  stock_value_cost: number;
+  last_sold_at: string | null;
+}
+
+export interface ExportLine {
+  date: string;
+  kind: 'sale' | 'return';
+  receipt_no: number;
+  product: string;
+  category: string | null;
+  qty: number;
+  revenue: number;
+  cost: number;
+  profit: number;
+  payment_method: PaymentMethod;
+  cashier: string;
 }
 
 // ─── RPC contract ───────────────────────────────────────────────────
 
-export interface SearchArgs {
-  p_query?: string | null;
-  p_category?: Category | null;
-  p_conditions?: Condition[] | null;
-  p_city?: string | null;
-  p_brand?: string | null;
-  p_min_price?: number | null;
-  p_max_price?: number | null;
-  p_specs?: Specs | null;
-  p_sort?: SortOption;
-  p_featured_only?: boolean;
-  p_limit?: number;
-  p_offset?: number;
-}
-
 type Void = Record<string, never>;
 
 export interface RpcMap {
-  // public
-  search_listings: [SearchArgs, SearchResult];
-  home_feed: [{ p_city?: string | null }, HomeFeed];
-  get_listing: [{ p_id: string }, ListingDetail];
-  get_seller: [{ p_public_id: string }, SellerProfile];
-  get_public_settings: [Void, PublicSettings];
-  price_hint: [{ p_category: Category; p_brand?: string | null }, { median: number | null; low: number | null; high: number | null }];
-  // account
+  // session, settings, team
   get_me: [Void, Me];
-  update_my_profile: [{ p_input: { city?: string; language?: Language } }, Me];
-  // buyer
-  register_view: [{ p_id: string }, null];
-  toggle_favorite: [{ p_id: string }, boolean];
-  my_favorites: [Void, FavoriteItem[]];
-  request_contact: [{ p_id: string }, ContactResult];
-  submit_report: [{ p_target_type: 'product' | 'user'; p_target_id: string; p_reason: ReportReason; p_note?: string }, string];
-  submit_review: [{ p_product_id: string; p_rating: number; p_comment?: string }, string];
-  // seller
-  my_listings: [Void, MyListing[]];
-  get_my_listing: [{ p_id: string }, DraftListing];
-  create_listing: [{ p_input: ListingInput }, string];
-  update_listing: [{ p_id: string; p_input: ListingInput }, { status: ListingStatus; needs_review: boolean }];
-  set_listing_images: [{ p_id: string; p_images: ListingImage[] }, { count: number; status: ListingStatus }];
-  submit_listing: [{ p_id: string }, SubmitResult];
-  set_listing_status: [{ p_id: string; p_status: 'paused' | 'active' | 'sold' }, ListingStatus];
-  renew_listing: [{ p_id: string }, SubmitResult];
-  delete_listing: [{ p_id: string }, { deleted: boolean; paths: string[] }];
-  create_boost_payment: [{ p_id: string }, { payment_id: string; amount_etb: number }];
-  // payments
-  get_payment: [{ p_id: string }, PaymentDetail];
-  submit_payment_reference: [{ p_payment_id: string; p_reference: string; p_screenshot_path?: string }, PaymentDetail];
-  // staff
-  admin_dashboard: [Void, AdminDashboard];
-  admin_review_queue: [{ p_limit?: number }, QueueItem[]];
-  moderate_listing: [{ p_id: string; p_approve: boolean; p_reason?: ListingRejectReason | null; p_note?: string }, ListingStatus];
-  admin_remove_listing: [{ p_id: string; p_reason: ListingRejectReason; p_note?: string }, ListingStatus];
-  admin_list_listings: [{ p_status?: string; p_search?: string | null; p_limit?: number; p_offset?: number }, AdminListing[]];
-  admin_list_reports: [{ p_status?: string; p_limit?: number }, AdminReport[]];
-  resolve_report: [{ p_id: string; p_action: 'dismiss' | 'remove_listing' | 'ban_user'; p_note?: string }, string];
-  // admin
-  admin_list_payments: [{ p_status?: string; p_search?: string | null; p_limit?: number; p_offset?: number }, AdminPayment[]];
-  admin_confirm_payment: [{ p_id: string; p_note?: string }, PaymentDetail];
-  admin_reject_payment: [{ p_id: string; p_reason: PaymentRejectReason; p_note?: string }, PaymentDetail];
-  admin_refund_payment: [{ p_id: string; p_note?: string }, PaymentDetail];
-  admin_list_users: [{ p_search?: string | null; p_filter?: string; p_limit?: number; p_offset?: number }, AdminUser[]];
-  admin_get_user: [{ p_public_id: string }, AdminUserDetail];
-  admin_set_ban: [{ p_public_id: string; p_banned: boolean; p_reason?: string }, AdminUser];
-  admin_set_role: [{ p_public_id: string; p_role: Role }, AdminUser];
-  admin_set_verified: [{ p_public_id: string; p_verified: boolean }, AdminUser];
-  admin_get_settings: [Void, AdminSettings];
-  admin_update_settings: [{ p_input: Partial<Omit<AdminSettings, 'updated_at' | 'updated_by'>> }, AdminSettings];
-  admin_audit_log: [
-    { p_action?: string | null; p_target_type?: string | null; p_actor?: string | null; p_limit?: number; p_offset?: number },
-    AuditEntry[],
+  update_my_profile: [{ p_input: { language?: Language } }, Me];
+  get_settings: [Void, ShopSettings];
+  update_settings: [{ p_input: SettingsInput }, ShopSettings];
+  list_team: [Void, Team];
+  set_member_role: [{ p_public_id: string; p_role: Role }, Member];
+  // catalog
+  list_categories: [{ p_include_archived?: boolean }, Category[]];
+  upsert_category: [{ p_input: { id?: string; name: string; sort?: number } }, Category];
+  set_category_archived: [{ p_id: string; p_archived: boolean }, Category];
+  list_products: [{ p_filters?: ProductFilters; p_limit?: number; p_offset?: number }, ProductPage];
+  get_product: [{ p_id: string }, Product];
+  find_product_by_code: [{ p_code: string }, Product | null];
+  create_product: [{ p_input: ProductInput }, Product];
+  update_product: [{ p_id: string; p_input: ProductInput }, Product];
+  set_product_status: [{ p_id: string; p_status: ProductStatus }, Product];
+  delete_product: [{ p_id: string }, null];
+  // stock
+  restock: [{ p_items: RestockItem[]; p_supplier?: string; p_note?: string }, Product[]];
+  adjust_stock: [{ p_product_id: string; p_mode: 'set' | 'loss'; p_qty: number; p_reason: string }, Product];
+  product_movements: [{ p_product_id: string; p_before?: number | null; p_limit?: number }, Movement[]];
+  low_stock: [{ p_limit?: number }, LowStockItem[]];
+  // sales
+  record_sale: [
+    { p_client_ref: string; p_items: SaleItemInput[]; p_payment_method: PaymentMethod; p_discount?: number; p_note?: string },
+    Sale,
   ];
+  void_sale: [{ p_id: string; p_reason: string }, Sale];
+  return_sale_items: [{ p_sale_id: string; p_items: Array<{ sale_item_id: number; qty: number }>; p_reason: string }, Sale];
+  get_sale: [{ p_id: string }, Sale];
+  list_sales: [{ p_filters?: SalesFilters; p_limit?: number; p_offset?: number }, SalesPage];
+  // expenses
+  create_expense: [{ p_input: ExpenseInput }, Expense];
+  update_expense: [{ p_id: string; p_input: ExpenseInput }, Expense];
+  delete_expense: [{ p_id: string }, null];
+  list_expenses: [{ p_filters?: { from?: string; to?: string; categories?: ExpenseCategory[] }; p_limit?: number; p_offset?: number }, ExpensesPage];
+  // reports (owner)
+  dashboard_summary: [{ p_filters?: ReportFilters }, DashboardSummary];
+  sales_trend: [{ p_filters?: ReportFilters; p_bucket?: TrendBucket | null }, { bucket: TrendBucket; points: TrendPoint[] }];
+  product_performance: [{ p_filters?: ReportFilters; p_sort?: 'qty' | 'revenue' | 'profit'; p_limit?: number }, ProductPerformance[]];
+  category_breakdown: [{ p_filters?: ReportFilters }, Array<{ category_id: string | null; name: string | null; qty: number; revenue: number; profit: number }>];
+  payment_breakdown: [{ p_filters?: ReportFilters }, Array<{ payment_method: PaymentMethod; revenue: number; sales: number }>];
+  cashier_breakdown: [{ p_filters?: ReportFilters }, Array<{ cashier_id: string; name: string; revenue: number; sales: number }>];
+  slow_movers: [{ p_days?: number | null; p_limit?: number }, SlowMover[]];
+  stock_summary: [
+    { p_filters?: Pick<ReportFilters, 'category_ids'> },
+    { totals: StockTotals; by_category: Array<{ category_id: string | null; name: string | null; product_count: number; units: number; value_cost: number; value_retail: number }> },
+  ];
+  export_sales_lines: [{ p_filters?: ReportFilters }, ExportLine[]];
 }
 
 export type RpcName = keyof RpcMap;
@@ -542,12 +451,6 @@ export type RpcResult<K extends RpcName> = RpcMap[K][1];
 
 export interface FnMap {
   'auth-telegram': [{ initData: string }, { access_token: string; expires_at: number }];
-  'verify-phone': [{ response: string }, { phone_verified: true }];
-  storage: [
-    | { action: 'listing-image'; product_id: string; ext: string }
-    | { action: 'payment-proof'; ext: string }
-    | { action: 'view-proof'; payment_id: string },
-    { path?: string; token?: string; signed_url?: string; url?: string },
-  ];
+  storage: [{ action: 'product-image'; ext: string }, { path: string; token: string; signed_url: string }];
 }
 export type FnName = keyof FnMap;
