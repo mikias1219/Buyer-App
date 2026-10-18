@@ -18,5 +18,5 @@ Rules:
 12. Add or update tests for business rules (stock ledger, WAC cost, overselling, void/returns, profit formulas, role/RLS). Run typecheck, lint and tests before declaring a phase done.
 13. At the end of each phase, output: what changed, how to run/verify it, acceptance checklist results, and any open questions or assumptions. If something in the spec is ambiguous or conflicts with the code, state your assumption explicitly instead of silently choosing.
 14. Keep commits small and logically grouped; do not rewrite unrelated files.
-15. Rebuild work happens on branch `shop-rebuild`. Never push to `main` or `rebuild/production` until the
-    Phase 7 cutover: CI applies migrations to production on push.
+15. Work happens on `main`. Every push to `main` runs CI and then applies migrations to production,
+    deploys Edge Functions and the web app. Push only when typecheck, lint and all tests pass.
