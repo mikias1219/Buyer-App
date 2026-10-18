@@ -1,6 +1,5 @@
 // Scheduled worker (call every minute with header `x-cron-secret: $CRON_SECRET`).
-//  1. run_maintenance(): expire listings, queue day-N reminders, end boosts.
-//  2. Drain notifications_outbox with retries/backoff; permanent failures stop and mark bot_blocked.
+// Drains notifications_outbox with retries/backoff; permanent failures stop and mark bot_blocked.
 import { isPermanentTelegramError, renderNotification, type LinkConfig, type OutboxRow } from '../_shared/messages.ts';
 import { timingSafeEqual } from '../_shared/telegramAuth.ts';
 import { env, serve, serviceClient } from '../_shared/runtime.ts';
@@ -37,17 +36,7 @@ serve(async (req) => {
   if (!secret || !timingSafeEqual(secret, expected)) return new Response('forbidden', { status: 403 });
 
   const db = serviceClient();
-  const maintenance = await db.rpc('run_maintenance');
-  if (maintenance.error) console.error('run_maintenance', maintenance.error.message);
-
-  const { data: settings } = await db.rpc('get_public_settings');
-  const s = (settings ?? {}) as { bot_username?: string; mini_app_short_name?: string };
-  const cfg: LinkConfig = {
-    miniAppUrl: env('MINI_APP_URL', false),
-    botUsername: s.bot_username ?? '',
-    miniAppShortName: s.mini_app_short_name ?? '',
-    imageBaseUrl: `${env('SUPABASE_URL')}/storage/v1/object/public/listing-images`,
-  };
+  const cfg: LinkConfig = { miniAppUrl: env('MINI_APP_URL', false) };
 
   const { data: rows, error } = await db.rpc('claim_outbox', { p_limit: 50 });
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 });
@@ -61,31 +50,15 @@ serve(async (req) => {
       failed++;
       continue;
     }
-    const replyMarkup = msg.button
-      ? {
-          inline_keyboard: [[
-            msg.button.webAppUrl
-              ? { text: msg.button.text, web_app: { url: msg.button.webAppUrl } }
-              : { text: msg.button.text, url: msg.button.url },
-          ]],
-        }
-      : undefined;
-
-    const result = msg.photoUrl
-      ? await telegram('sendPhoto', {
-          chat_id: row.chat_id,
-          photo: msg.photoUrl,
-          caption: msg.text,
-          parse_mode: 'HTML',
-          reply_markup: replyMarkup,
-        })
-      : await telegram('sendMessage', {
-          chat_id: row.chat_id,
-          text: msg.text,
-          parse_mode: 'HTML',
-          link_preview_options: { is_disabled: true },
-          reply_markup: replyMarkup,
-        });
+    const result = await telegram('sendMessage', {
+      chat_id: row.chat_id,
+      text: msg.text,
+      parse_mode: 'HTML',
+      link_preview_options: { is_disabled: true },
+      ...(msg.button
+        ? { reply_markup: { inline_keyboard: [[{ text: msg.button.text, web_app: { url: msg.button.webAppUrl } }]] } }
+        : {}),
+    });
 
     if (result.ok) {
       sent++;
@@ -102,7 +75,7 @@ serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify({ maintenance: maintenance.data, sent, failed }), {
+  return new Response(JSON.stringify({ sent, failed }), {
     headers: { 'Content-Type': 'application/json' },
   });
 });

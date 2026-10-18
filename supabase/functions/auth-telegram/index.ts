@@ -39,17 +39,17 @@ serve(async (req) => {
     return fail(req, 'server_error', 500);
   }
 
-  // First-admin bootstrap: only takes effect while the project has no admin at all.
+  // First-owner bootstrap: only takes effect while the shop has no owner at all.
   const bootstrapIds = env('INITIAL_ADMIN_TELEGRAM_IDS', false).split(',').map((s) => s.trim());
   if (bootstrapIds.includes(tgId)) {
-    await db.rpc('bootstrap_admin', { p_telegram_id: tgId });
+    await db.rpc('bootstrap_owner', { p_telegram_id: tgId });
   }
 
   const now = Math.floor(Date.now() / 1000);
   // Never outlive the initData it was derived from.
   const exp = Math.min(now + TOKEN_TTL_SECONDS, verified.data.authDate + MAX_INIT_AGE_SECONDS);
   const accessToken = await signJwt(
-    { sub: tgId, tg_id: tgId, role: 'authenticated', aud: 'authenticated', iat: now, exp, iss: 'techmarket-auth' },
+    { sub: tgId, tg_id: tgId, role: 'authenticated', aud: 'authenticated', iat: now, exp, iss: 'shop-auth' },
     env('JWT_SECRET'),
   );
   return json(req, { access_token: accessToken, expires_at: exp });

@@ -9,22 +9,7 @@ import {
   type OutboxRow,
 } from './messages.ts';
 
-const cfg: LinkConfig = {
-  miniAppUrl: 'https://techmarket.example/',
-  botUsername: 'TechMarketBot',
-  miniAppShortName: 'market',
-  imageBaseUrl: 'https://proj.supabase.co/storage/v1/object/public/listing-images',
-};
-
-const product = {
-  id: '11111111-1111-4111-8111-111111111111',
-  title: 'iPhone 13',
-  price: 32000,
-  city: 'Adama',
-  condition: 'good',
-  status: 'active',
-  cover_path: '42/11111111-1111-4111-8111-111111111111/a.webp',
-};
+const cfg: LinkConfig = { miniAppUrl: 'https://shop.example/' };
 
 function row(kind: string, language = 'en', payload: Record<string, unknown> = {}): OutboxRow {
   return {
@@ -32,8 +17,7 @@ function row(kind: string, language = 'en', payload: Record<string, unknown> = {
     chat_id: '42',
     kind,
     language,
-    product,
-    payload: { product_id: product.id, title: '<b>iPhone</b> & co', reason: 'bad_photos', amount_etb: 100, ...payload },
+    payload: { name: '<b>Abel</b> & co', username: 'abel_k', role: 'staff', ...payload },
   };
 }
 
@@ -45,41 +29,32 @@ describe('renderNotification', () => {
   });
 
   it('escapes user content', () => {
-    const msg = renderNotification(row('listing_live'), cfg);
-    expect(msg?.text).toContain('&lt;b&gt;iPhone&lt;/b&gt; &amp; co');
-    expect(msg?.text).not.toContain('<b><b>');
+    const msg = renderNotification(row('access_request'), cfg);
+    expect(msg?.text).toContain('&lt;b&gt;Abel&lt;/b&gt; &amp; co');
+    expect(msg?.text).toContain('@abel_k');
   });
 
-  it('localizes reasons', () => {
-    expect(renderNotification(row('listing_rejected', 'en'), cfg)?.text).toContain('photos are unclear');
-    expect(renderNotification(row('listing_rejected', 'am'), cfg)?.text).toContain('ፎቶዎቹ');
+  it('localizes roles and handles removal', () => {
+    expect(renderNotification(row('role_changed', 'en'), cfg)?.text).toContain('staff (cashier)');
+    expect(renderNotification(row('role_changed', 'am'), cfg)?.text).toContain('ሠራተኛ');
+    expect(renderNotification(row('role_changed', 'en', { role: 'user' }), cfg)?.text).toContain('removed');
   });
 
-  it('private messages open the exact screen via web_app', () => {
-    expect(renderNotification(row('payment_rejected'), cfg)?.button?.webAppUrl).toBe(
-      'https://techmarket.example/#/mine?tab=action',
-    );
-    expect(renderNotification(row('listing_live'), cfg)?.button?.webAppUrl).toBe(
-      `https://techmarket.example/#/p/${product.id}`,
-    );
-  });
-
-  it('channel posts use a startapp deep link and the cover photo', () => {
-    const msg = renderNotification(row('channel_post'), cfg);
-    expect(msg?.button?.url).toBe(`https://t.me/TechMarketBot/market?startapp=p_${product.id}`);
-    expect(msg?.photoUrl).toBe(`${cfg.imageBaseUrl}/${product.cover_path}`);
-    expect(msg?.text).toContain('ETB 32,000');
+  it('buttons open the exact screen via web_app', () => {
+    expect(renderNotification(row('access_request'), cfg)?.button?.webAppUrl).toBe('https://shop.example/#/more/team');
+    expect(renderNotification(row('role_changed'), { miniAppUrl: '' })?.button).toBeUndefined();
   });
 
   it('unknown kinds are skipped, unknown languages fall back to English', () => {
     expect(renderNotification(row('nope'), cfg)).toBeNull();
-    expect(renderNotification(row('listing_live', 'fr'), cfg)?.text).toContain('is live');
+    expect(renderNotification(row('access_request', 'fr'), cfg)?.text).toContain('asking for access');
   });
 });
 
 describe('helpers', () => {
   it('formats ETB', () => {
     expect(formatEtb(25000)).toBe('ETB 25,000');
+    expect(formatEtb(40.5)).toBe('ETB 40.5');
     expect(formatEtb('x')).toBe('');
   });
   it('escapes html', () => {
