@@ -55,6 +55,14 @@ describe('locales', () => {
       ['expenseCategory', EXPENSE_CATEGORIES],
       ['movement', MOVEMENT_TYPES],
       ['language', ['en', 'am']],
+      ['dashboard.trendTitle', ['day', 'week', 'month']],
+      ['products.sort', ['name', 'stock_asc', 'stock_desc', 'best_selling', 'margin', 'newest']],
+      ['sell.problem', ['invalid_quantity', 'insufficient_stock', 'discount']],
+      ['stockOps.mode', ['set', 'loss']],
+      ['sales.statusOption', ['all', 'completed', 'voided']],
+      ['reports.kind', ['sale', 'return']],
+      ...(['sales', 'products', 'stock', 'expenses'].flatMap((k) => [[`reports.${k}`, ['title', 'body']]]) as Array<[string, string[]]>),
+      ['import.field', ['name', 'category', 'sku', 'barcode', 'unit', 'sell_price', 'cost_price', 'opening_stock', 'reorder_level', 'header']],
     ];
     const missing = families.flatMap(([prefix, values]) => values.map((v) => `${prefix}.${v}`)).filter((k) => !has(EN, k));
     expect(missing).toEqual([]);

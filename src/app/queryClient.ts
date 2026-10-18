@@ -47,6 +47,11 @@ export const qk = {
     all: ['expenses'] as const,
     list: (filters: object) => ['expenses', 'list', filters] as const,
   },
+  customers: {
+    all: ['customers'] as const,
+    list: (q: string, owingOnly: boolean) => ['customers', 'list', q, owingOnly] as const,
+    detail: (id: string) => ['customers', 'detail', id] as const,
+  },
   reports: {
     all: ['reports'] as const,
     of: (name: string, args: object) => ['reports', name, args] as const,

@@ -26,8 +26,8 @@ function. Bot messages are queued in `notifications_outbox` and delivered by `no
 | `supabase/seed.sql` | Settings row + starter categories (local dev / tests) |
 | `supabase/functions/auth-telegram` | initData → JWT, first-owner bootstrap |
 | `supabase/functions/storage` | Signed upload URLs for product photos (owners only) |
-| `supabase/functions/notify` | Scheduled outbox delivery with retry/backoff |
-| `supabase/functions/bot-webhook` | `/start`, `/help` → open the Mini App |
+| `supabase/functions/notify` | Scheduled: queues the daily summary once a day, then delivers the outbox (access requests, role changes, low-stock alerts, daily summary) |
+| `supabase/functions/bot-webhook` | `/start`, `/help`, `/today` (owners), `/lowstock` (members) |
 | `supabase/tests/*` + `scripts/test-db.sh` | Migrations, roles/RLS, stock, sales, reports and production-upgrade tests on plain Postgres |
 
 ## 3. RPC reference
@@ -49,7 +49,10 @@ All take/return JSON; errors are raised with a stable code as the message (see �
 | | `list_sales(filters, limit, offset)`, `get_sale(id)` | owner: all; staff: own sales today |
 | | `void_sale(id, reason)`, `return_sale_items(sale_id, items, reason)` | owner |
 | Expenses | `create_expense`, `update_expense`, `delete_expense`, `list_expenses(filters)` | owner |
-| Reports | `dashboard_summary`, `sales_trend(filters, bucket)`, `product_performance(filters, sort, limit)`, `category_breakdown`, `payment_breakdown`, `cashier_breakdown`, `slow_movers(days, limit)`, `stock_summary`, `export_sales_lines` | owner |
+| Reports | `dashboard_summary` (incl. `receivables`), `sales_trend(filters, bucket)`, `product_performance(filters, sort, limit)`, `category_breakdown`, `payment_breakdown`, `cashier_breakdown`, `slow_movers(days, limit)`, `stock_summary`, `export_sales_lines` | owner |
+| Customers & credit | `list_customers(q, owing_only)`, `get_customer(id)` (history owner-only), `upsert_customer` (create: member, edit: owner), `record_customer_payment` (member, ≤ balance), `set_customer_archived` (owner) | see column |
+| Import | `import_products(rows, dry_run)`: all-or-nothing, per-row errors, unknown categories created | owner |
+| Bot (service_role) | `bot_today(tg_id)` (owners), `bot_low_stock(tg_id)` (members), `queue_daily_summary()` (called by `notify`) | Edge Functions |
 
 Only these RPCs are executable by `authenticated`, and nothing by `anon`. The allowlist lives
 in `public.lock_function_grants()` (migration 0700); Supabase would otherwise expose every new
@@ -98,6 +101,11 @@ psql "$SUPABASE_DB_URL" -v id="$OWNER_TG_ID" -c "select public.bootstrap_owner(:
 
 ### Scheduling `notify` (every minute)
 
+`notify` also queues the owners' daily summary (Settings → Daily summary, at the chosen time in
+the shop time zone). Low-stock alerts are queued by the database when a sale or loss takes a
+product to or below its low-stock level (Settings → Low-stock alerts).
+
+
 Dashboard → Integrations → Cron → *Create job* → **Supabase Edge Function** `notify`, schedule
 `* * * * *`, header `x-cron-secret: <CRON_SECRET>`.
 
@@ -131,7 +139,7 @@ What `shop_reset` does to existing data:
 (detail = field), `invalid_quantity`, `insufficient_stock` (detail = product id),
 `product_unavailable`, `below_cost`, `customer_required`, `duplicate_sku`, `duplicate_barcode`,
 `duplicate_category`, `has_history`, `no_change`, `invalid_transition`, `return_exceeds_sold`,
-`last_owner`, `conflict`.
+`last_owner`, `conflict`, `duplicate_phone`, `exceeds_balance`.
 
 ## 8. Business rules (where they live)
 
@@ -157,5 +165,9 @@ Assumptions where the spec left room:
 3. Report category filters use each product's **current** category.
 4. A return reduces revenue on the **return date**, not the original sale date.
 5. Staff restocking (when enabled) cannot set the unit cost; the current average is used.
+7. Credit sales count as revenue on the sale date (accrual); customer payments are not revenue.
+   A return on a credit sale lowers what the customer owes (it can go negative = store credit).
+8. The daily summary is queued by the existing `notify` worker instead of a separate
+   `daily-summary` function (one cron job instead of two).
 6. Expenses are shop-wide: product/category filters don't apply to them (`scoped: true` tells
    the dashboard to label net profit accordingly).

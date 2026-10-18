@@ -1,4 +1,4 @@
-import { Languages, Settings, UsersRound } from 'lucide-react';
+import { FileSpreadsheet, FolderTree, HandCoins, Languages, Settings, Upload, UsersRound, Wallet } from 'lucide-react';
 import { lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Avatar, Badge, Card, Chip, ListGroup, ListItem, PageHeader, Section } from '../../components/ui';
@@ -31,12 +31,23 @@ export default function MorePage() {
       </Card>
 
       {isOwner ? (
-        <Section title={t('more.manage')}>
-          <ListGroup>
-            <ListItem icon={UsersRound} label={t('team.title')} to="/more/team" />
-            <ListItem icon={Settings} label={t('settings.title')} to="/more/settings" />
-          </ListGroup>
-        </Section>
+        <>
+          <Section title={t('more.money')}>
+            <ListGroup>
+              <ListItem icon={Wallet} label={t('expenses.title')} to="/more/expenses" />
+              <ListItem icon={HandCoins} label={t('customers.title')} to="/more/customers" />
+              <ListItem icon={FileSpreadsheet} label={t('reports.title')} to="/more/reports" />
+            </ListGroup>
+          </Section>
+          <Section title={t('more.manage')}>
+            <ListGroup>
+              <ListItem icon={FolderTree} label={t('categories.title')} to="/more/categories" />
+              <ListItem icon={Upload} label={t('import.title')} to="/more/import" />
+              <ListItem icon={UsersRound} label={t('team.title')} to="/more/team" />
+              <ListItem icon={Settings} label={t('settings.title')} to="/more/settings" />
+            </ListGroup>
+          </Section>
+        </>
       ) : null}
 
       <Section title={t('more.language')}>
