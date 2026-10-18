@@ -90,3 +90,25 @@ select tap.as_user('9002');
 select tap.throws('select public.list_products()', 'banned', 'banned users are blocked');
 reset role;
 update public.profiles set is_banned = false where telegram_id = '9002';
+
+-- ─── Function permissions: exact allowlist (migration 0700) ─────────
+select tap.eq((
+  select string_agg(p.oid::regprocedure::text, ', ' order by 1)
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')
+    and p.prorettype <> 'event_trigger'::regtype
+), null, 'anon can execute no function at all');
+select tap.eq((
+  select count(*)::int
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and has_function_privilege('authenticated', p.oid, 'execute')
+    and p.prorettype <> 'event_trigger'::regtype
+), 38, 'authenticated can execute exactly the 38 client RPCs');
+select tap.ok(not has_function_privilege('authenticated', p.oid, 'execute'),
+              format('internal helper %s is not client-callable', p.proname))
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname in ('apply_movement', 'bootstrap_owner', 'upsert_telegram_profile', 'report_events',
+                    'report_kpis', 'stock_totals', 'sale_json', 'claim_outbox', 'complete_outbox',
+                    'notify_owners', 'enqueue_notification', 'write_audit', 'member_role',
+                    'lock_function_grants', 'settings_json', 'product_json');

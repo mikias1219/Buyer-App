@@ -20,3 +20,6 @@ Rules:
 14. Keep commits small and logically grouped; do not rewrite unrelated files.
 15. Work happens on `main`. Every push to `main` runs CI and then applies migrations to production,
     deploys Edge Functions and the web app. Push only when typecheck, lint and all tests pass.
+16. Supabase makes every new `public` function callable by anon/authenticated. Any migration that creates
+    functions must update the allowlist in `public.lock_function_grants()` and end with
+    `select public.lock_function_grants();` (see migration 20261018000700).

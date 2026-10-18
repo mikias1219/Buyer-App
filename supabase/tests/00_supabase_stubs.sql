@@ -33,3 +33,24 @@ grant execute on function auth.jwt() to anon, authenticated, service_role;
 -- Supabase grants table access to service_role by default.
 alter default privileges in schema public grant all on tables to service_role;
 alter default privileges in schema public grant all on sequences to service_role;
+
+-- Supabase makes every new function in `public` executable by anon and authenticated (platform
+-- default privileges that a project's own `alter default privileges` does not cancel). Emulate
+-- that so the grant lockdown is actually tested.
+create or replace function public.stub_supabase_function_grants()
+returns event_trigger
+language plpgsql
+as $$
+declare
+  r record;
+begin
+  for r in select * from pg_event_trigger_ddl_commands()
+           where object_type in ('function', 'procedure') and schema_name = 'public' loop
+    execute format('grant execute on function %s to anon, authenticated', r.object_identity);
+  end loop;
+end;
+$$;
+drop event trigger if exists stub_supabase_function_grants;
+create event trigger stub_supabase_function_grants on ddl_command_end
+  when tag in ('CREATE FUNCTION', 'CREATE PROCEDURE')
+  execute function public.stub_supabase_function_grants();

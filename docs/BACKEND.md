@@ -51,6 +51,11 @@ All take/return JSON; errors are raised with a stable code as the message (see Â
 | Expenses | `create_expense`, `update_expense`, `delete_expense`, `list_expenses(filters)` | owner |
 | Reports | `dashboard_summary`, `sales_trend(filters, bucket)`, `product_performance(filters, sort, limit)`, `category_breakdown`, `payment_breakdown`, `cashier_breakdown`, `slow_movers(days, limit)`, `stock_summary`, `export_sales_lines` | owner |
 
+Only these RPCs are executable by `authenticated`, and nothing by `anon`. The allowlist lives
+in `public.lock_function_grants()` (migration 0700); Supabase would otherwise expose every new
+function, so migrations that add functions must update it and call it (tested in
+`10_security.sql`).
+
 Report filters (one shape everywhere): `{ from, to, category_ids, product_ids, payment_methods,
 cashier_ids }`, with `from`/`to` as local dates (inclusive, default today) in
 `shop_settings.timezone`.
