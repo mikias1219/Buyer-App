@@ -150,10 +150,6 @@ jobs:
         run: |
           supabase db push --db-url "$SUPABASE_DB_URL" --dry-run
           supabase db push --db-url "$SUPABASE_DB_URL"
-          if [ -f supabase/scripts/migrate_legacy.sql ]; then
-            sudo apt-get install -y -qq postgresql-client >/dev/null
-            psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -q -f supabase/scripts/migrate_legacy.sql || true
-          fi
 
       - name: Skip DB migrations
         if: ${{ env.SUPABASE_DB_URL == '' }}

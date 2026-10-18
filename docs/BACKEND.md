@@ -1,164 +1,156 @@
 # Backend: Supabase setup, operations and cutover
 
-Covers the database, Edge Functions, secrets, first admin, scheduling, and the one-time
-migration from the MVP schema. The security model is summarized in `docs/SECURITY.md`.
+Covers the database, Edge Functions, secrets, the first owner, scheduling, and the one-time
+switch from the old TechMarket marketplace schema to the shop schema. Behaviour is defined in
+`docs/SPEC.md`.
 
 ## 1. Architecture in one paragraph
 
-The Mini App never writes to tables. On boot it sends Telegram's signed `initData` to the
+The Mini App never reads or writes tables. On boot it sends Telegram's signed `initData` to the
 `auth-telegram` Edge Function, which verifies the HMAC, upserts the profile and returns a
 short-lived JWT with a `tg_id` claim. With that JWT the app calls SECURITY DEFINER RPCs
-(`create_listing`, `submit_listing`, `submit_payment_reference`, `admin_confirm_payment`, …).
-Each RPC reads the caller's role from `profiles` and enforces the legal state transitions.
-Public browsing uses the `listings_public` view and `search_listings`, which never expose
-seller contact data. Images live in Storage, uploaded via signed URLs from the `storage`
-function. Bot messages are queued in `notifications_outbox` and delivered by the `notify`
-function, which also runs expiry, reminders and boost expiry.
+(`record_sale`, `restock`, `dashboard_summary`, …). Each RPC reads the caller's role
+(`owner | staff | user`) from `profiles`, applies the business rules and returns JSON shaped for
+that role (cost and profit only for owners). Every stock change is a row in the append-only
+`stock_movements` ledger written in the same transaction as the cached `products.stock_qty`.
+Product photos live in the `product-images` bucket, uploaded via signed URLs from the `storage`
+function. Bot messages are queued in `notifications_outbox` and delivered by `notify`.
 
 ## 2. Files
 
 | Path | Purpose |
 |------|---------|
-| `supabase/migrations/*.sql` | Ordered, re-runnable schema, RLS, RPCs. Never edit an applied migration; add a new file. |
-| `supabase/seed.sql` | Settings row only (no personal data). |
-| `supabase/functions/auth-telegram` | initData → JWT |
-| `supabase/functions/verify-phone` | Signed `requestContact` payload → `phone_verified = true` |
-| `supabase/functions/storage` | Signed upload URLs (listing images, payment proofs), signed proof downloads |
-| `supabase/functions/notify` | Scheduled: maintenance + outbox delivery with retry/backoff |
-| `supabase/functions/bot-webhook` | `/start`, `/help`, `/sell`, `/mylistings`, inline search, contact fallback |
-| `supabase/scripts/migrate_legacy.sql` | One-time MVP → v1 data copy (idempotent) |
-| `scripts/migrate-legacy-images.mjs` | One-time move of base64 images into Storage |
-| `supabase/scripts/cleanup_legacy.sql` | Drop the MVP tables after verification (irreversible) |
-| `supabase/tests/*` + `scripts/test-db.sh` | Migration, RLS, business-rule and legacy-path tests on plain Postgres |
+| `supabase/migrations/20261004…` | Old marketplace schema (already applied in production; never edited) |
+| `supabase/migrations/20261018000100_shop_reset.sql` | Drops the marketplace objects, trims `profiles`, maps roles (runs only once) |
+| `supabase/migrations/20261018000200…0600` | Shop schema, RLS/grants, catalog & stock, sales, expenses & reports, team/settings/jobs |
+| `supabase/seed.sql` | Settings row + starter categories (local dev / tests) |
+| `supabase/functions/auth-telegram` | initData → JWT, first-owner bootstrap |
+| `supabase/functions/storage` | Signed upload URLs for product photos (owners only) |
+| `supabase/functions/notify` | Scheduled outbox delivery with retry/backoff |
+| `supabase/functions/bot-webhook` | `/start`, `/help` → open the Mini App |
+| `supabase/tests/*` + `scripts/test-db.sh` | Migrations, roles/RLS, stock, sales, reports and production-upgrade tests on plain Postgres |
 
-## 3. Secrets
+## 3. RPC reference
 
-Set Edge Function secrets with the Supabase CLI (`supabase secrets set NAME=value`) or in
-Dashboard → Edge Functions → Secrets. Names are listed in `.env.example`.
+All take/return JSON; errors are raised with a stable code as the message (see §7).
 
-- `JWT_SECRET` must be the secret your project uses to verify HS256 tokens
-  (Dashboard → Project Settings → JWT Keys → *Legacy JWT secret*). PostgREST accepts our
-  tokens only if they are signed with it. If you rotate it, every session re-authenticates
-  automatically on next open.
+| Area | RPC | Who |
+|------|-----|-----|
+| Session | `get_me()`, `update_my_profile({language})` | anyone signed in |
+| Settings | `get_settings()` (reduced for staff), `update_settings(input)` | member / owner |
+| Team | `list_team()`, `set_member_role(public_id, role)` | owner |
+| Categories | `list_categories(include_archived)`, `upsert_category({id?, name, sort?})`, `set_category_archived(id, bool)` | member / owner |
+| Products | `list_products(filters, limit, offset)`, `get_product(id)`, `find_product_by_code(code)` | member (cost fields owner-only) |
+| | `create_product(input)`, `update_product(id, input)`, `set_product_status(id, status)`, `delete_product(id)` | owner |
+| Stock | `restock(items, supplier, note)` | owner (staff if `staff_can_restock`) |
+| | `adjust_stock(product_id, 'set'\|'loss', qty, reason)`, `product_movements(product_id, before, limit)` | owner |
+| | `low_stock(limit)` | member |
+| Sales | `record_sale(client_ref, items, payment_method, discount, note)` | member |
+| | `list_sales(filters, limit, offset)`, `get_sale(id)` | owner: all; staff: own sales today |
+| | `void_sale(id, reason)`, `return_sale_items(sale_id, items, reason)` | owner |
+| Expenses | `create_expense`, `update_expense`, `delete_expense`, `list_expenses(filters)` | owner |
+| Reports | `dashboard_summary`, `sales_trend(filters, bucket)`, `product_performance(filters, sort, limit)`, `category_breakdown`, `payment_breakdown`, `cashier_breakdown`, `slow_movers(days, limit)`, `stock_summary`, `export_sales_lines` | owner |
+
+Report filters (one shape everywhere): `{ from, to, category_ids, product_ids, payment_methods,
+cashier_ids }`, with `from`/`to` as local dates (inclusive, default today) in
+`shop_settings.timezone`.
+
+## 4. Secrets
+
+Set Edge Function secrets with `supabase secrets set NAME=value` or in Dashboard → Edge
+Functions → Secrets. Names are listed in `.env.example`.
+
+- `JWT_SECRET` must be the project's HS256 secret (Dashboard → Project Settings → JWT Keys →
+  *Legacy JWT secret*).
 - `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are injected
-  automatically into Edge Functions; don't set them yourself.
-- Only `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` go to the web app. The anon key
-  is public by design: with the RLS in this repo it can read only the public catalogue.
+  automatically into Edge Functions.
+- Only `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` go to the web app. With this schema the
+  anon key can read nothing at all.
 
-## 4. Fresh project setup
+## 5. Fresh project setup
 
 ```bash
-# 0. Tools: Supabase CLI (https://supabase.com/docs/guides/cli), psql
 supabase login && supabase link --project-ref <ref>
-
-# 1. Database
-supabase db push                      # applies supabase/migrations in order
-psql "$SUPABASE_DB_URL" -f supabase/seed.sql
-
-# 2. Functions + secrets
+supabase db push
+psql "$SUPABASE_DB_URL" -f supabase/seed.sql          # optional starter categories
 supabase secrets set BOT_TOKEN=... JWT_SECRET=... WEBHOOK_SECRET=... CRON_SECRET=... \
   MINI_APP_URL=https://<your-app> INITIAL_ADMIN_TELEGRAM_IDS=<your numeric telegram id>
-supabase functions deploy auth-telegram verify-phone storage notify bot-webhook
-
-# 3. Bot webhook
+supabase functions deploy auth-telegram storage notify bot-webhook
 curl "https://api.telegram.org/bot$BOT_TOKEN/setWebhook" \
   -d url="https://<ref>.supabase.co/functions/v1/bot-webhook" -d secret_token="$WEBHOOK_SECRET"
 ```
 
-### First admin
+### First owner
 
 Set `INITIAL_ADMIN_TELEGRAM_IDS` to your numeric Telegram ID before you first open the app.
-`auth-telegram` promotes you on login **only while the project has no admin**. After that,
-manage roles from Admin → Users. To do it by hand instead (one-off, ID from your shell, not
-committed):
+`auth-telegram` makes you the owner on login **only while the shop has no owner**. Afterwards,
+staff open the app once (they appear under Team → Requests) and you grant them access.
+By hand (ID from your shell, never committed):
 
 ```bash
-psql "$SUPABASE_DB_URL" -v id="$ADMIN_TG_ID" \
-  -c "select public.bootstrap_admin(:'id')"     # the user must have opened the app once
+psql "$SUPABASE_DB_URL" -v id="$OWNER_TG_ID" -c "select public.bootstrap_owner(:'id')"
 ```
 
 ### Scheduling `notify` (every minute)
 
-Dashboard → Integrations → Cron → *Create job* → type **Supabase Edge Function**, function
-`notify`, schedule `* * * * *`, header `x-cron-secret: <CRON_SECRET>`.
-Migration 0800 also schedules `run_maintenance()` every 10 minutes via `pg_cron` when that
-extension is enabled, so expiry keeps working even if the function schedule is missing.
+Dashboard → Integrations → Cron → *Create job* → **Supabase Edge Function** `notify`, schedule
+`* * * * *`, header `x-cron-secret: <CRON_SECRET>`.
 
-### Settings
+## 6. Production cutover (marketplace → shop, Phase 7)
 
-After first login, open Admin → Settings and fill in the Telebirr number/name, support
-username, bot username and Mini App short name (needed for share links and channel posts).
-If you use auto-posting, also set the channel ID and add the bot as a channel admin.
-
-## 5. Production cutover from the MVP (one maintenance window)
-
-The MVP schema let the anon key write everything. Migration `0100` moves those tables into
-a private `legacy` schema. **The old web app stops working the moment it runs**, so deploy
-the new web app in the same window.
+Production currently runs the 20261004 marketplace schema. CI applies migrations on every push to
+`main`, so the shop work stays on branch `shop-rebuild` until this window.
 
 ```bash
 export SUPABASE_DB_URL='postgresql://...'      # in your shell only
-
-# 1. Backup (keep it!)
-pg_dump "$SUPABASE_DB_URL" --no-owner --format=custom -f backup-$(date +%F-%H%M).dump
-
-# 2. Schema + data
-for f in supabase/migrations/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done
-psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/seed.sql
-psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/scripts/migrate_legacy.sql
-
-# 3. Images (service key from Dashboard → API; shell only)
-SUPABASE_URL=https://<ref>.supabase.co SUPABASE_SERVICE_ROLE_KEY=... node scripts/migrate-legacy-images.mjs
-
-# 4. Functions + secrets (section 4), then deploy the new web app (Vercel)
-# 5. Smoke test in Telegram (docs/LAUNCH.md). When happy, optionally:
-psql "$SUPABASE_DB_URL" -f supabase/scripts/cleanup_legacy.sql
+pg_dump "$SUPABASE_DB_URL" --no-owner --format=custom -f backup-$(date +%F-%H%M).dump   # keep it
+git checkout main && git merge shop-rebuild && git push   # CI: db push → functions → Vercel
 ```
 
-What the data copy does:
+What `shop_reset` does to existing data:
 
-- Profiles are copied. Phones are kept but marked **unverified**, because MVP phones were
-  typed in, not verified through Telegram.
-- Legacy `admin_telegram_ids` become `admin` roles.
-- Listings keep their status (`hidden` becomes `removed`). Live ones get a fresh 30-day period.
-- Payments are copied with normalized references. Invalid references become `LEGACY-…`
-  (the original is kept in the admin note), and duplicates get a `-D<n>` suffix.
-- Rows created by browser-preview "guest" users are dropped.
+- Profiles are kept. Roles map `admin → owner`, `moderator → staff`, `user → user`. Phone,
+  city and seller columns are dropped.
+- Listings, images metadata, payments, favorites, leads, reports, reviews, views, platform
+  settings and the `legacy` schema are **dropped**. `audit_log` history is kept; unsent
+  marketplace notifications are deleted.
+- The `listing-images` and `payment-proofs` Storage buckets are left alone (Supabase blocks
+  deleting storage objects from SQL). Empty and delete them in Dashboard → Storage afterwards.
+- Remove the old `verify-phone` function: `supabase functions delete verify-phone`.
 
-The whole path is exercised by `npm run test:db` against the real MVP schema.
+`npm run test:db` replays exactly this path (old migrations + marketplace rows → shop migrations).
 
-## 6. Testing
+## 7. Error codes
 
-```bash
-npm run test:db     # throwaway local Postgres (or DATABASE_URL in CI): migrations twice,
-                    # RLS/security, lifecycle, buyer, admin suites, legacy migration path
-npm test            # unit tests incl. initData HMAC, JWT and bot message rendering
-```
+`not_authenticated`, `banned`, `no_access`, `not_authorized`, `not_found`, `invalid_input`
+(detail = field), `invalid_quantity`, `insufficient_stock` (detail = product id),
+`product_unavailable`, `below_cost`, `customer_required`, `duplicate_sku`, `duplicate_barcode`,
+`duplicate_category`, `has_history`, `no_change`, `invalid_transition`, `return_exceeds_sold`,
+`last_owner`, `conflict`.
 
-## 7. Business rules (where they live)
+## 8. Business rules (where they live)
 
 | Rule (SPEC A3) | Enforced in |
 |----------------|-------------|
-| Free quota: first N listings free, then fee | `submit_listing` (`listings_free_used`, `is_free`, `period_paid`) |
-| Paid listings live on confirmation unless flagged | `admin_confirm_payment` → `listing_go_live` / `in_review` |
-| Duration, reminders, expiry | `listing_go_live`, `run_maintenance` |
-| Renewal: first free (review), then fee | `renew_listing` |
-| Max active listings | `count_open_listings` in `submit_listing` / `renew_listing` |
-| Boost | `create_boost_payment` + `admin_confirm_payment` |
-| Price sanity & duplicate photos → moderation flags | `listing_compute_flags` |
-| Unique Telebirr reference | `payments_reference_unique` index + `submit_payment_reference` |
-| Contact via RPC only, rate-limited, logged | `request_contact` (+ `leads`) |
-| Rejection reason codes | `moderate_listing`, `admin_reject_payment`, `admin_remove_listing` |
-| Refund → listing removed, admin only | `admin_refund_payment` |
-| Bans hide listings and block actions | `listings_public` view + `require_user()` |
+| Ledger + cached stock in one transaction | `apply_movement` (called by every stock-changing RPC) |
+| No overselling, row locks in id order | `record_sale`, `adjust_stock` (`allow_negative_stock`) |
+| Weighted average cost | `restock` |
+| Price/cost snapshot per sale line | `sale_items.unit_price / unit_cost` |
+| Discounts, staff below-cost block | `record_sale` (`staff_can_sell_below_cost`) |
+| Idempotent sales | `sales.client_ref` UNIQUE + check after locking |
+| Void / partial returns, owner only | `void_sale`, `return_sale_items` |
+| Profit definitions, filters, time zone | `report_events`, `report_kpis`, `parse_report_filters` |
+| Archive vs delete | `delete_product` (`has_history`) |
+| Whole-number units | `check_qty` |
+| Audit | `write_audit` in every owner write |
 
-Assumptions where the spec left room (also listed in the phase report):
+Assumptions where the spec left room:
 
-1. The free quota is **lifetime** (first N listings), matching the `listings_free_used` counter.
-2. Editing photos, title, description, category or specs of a live listing sends it back to
-   review. Price, city, negotiable and exchange changes apply instantly (and price drops notify
-   people who saved the listing).
-3. Re-approval after an edit keeps the original expiry date.
-4. A reference from a *rejected* payment may be reused, since it was never credited.
-5. A seller without a public @username is reached through their verified phone (`tel:` link).
-6. With `listing_fee_etb = 0`, every listing is free and goes through review.
+1. Returns and voids put stock back without changing the average cost.
+2. Net profit subtracts **damage/loss** only; stock-count corrections are reported separately as
+   `adjustments_value` (they can be gains or losses).
+3. Report category filters use each product's **current** category.
+4. A return reduces revenue on the **return date**, not the original sale date.
+5. Staff restocking (when enabled) cannot set the unit cost; the current average is used.
+6. Expenses are shop-wide: product/category filters don't apply to them (`scoped: true` tells
+   the dashboard to label net profit accordingly).
