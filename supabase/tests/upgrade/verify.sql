@@ -17,3 +17,4 @@ select tap.eq((select count(*)::int from public.notifications_outbox where sent_
 select tap.login('7001');
 select tap.eq(public.get_me() ->> 'role', 'owner', 'mapped owner can sign in');
 select tap.eq((public.list_products() ->> 'total')::int, 0, 'shop starts empty');
+select tap.ok(to_regprocedure('public.rls_auto_enable()') is not null, 'platform-owned functions are untouched');

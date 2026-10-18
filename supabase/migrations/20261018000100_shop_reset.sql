@@ -9,9 +9,27 @@
 
 do $$
 declare
-  v_keep text[] := array[
-    'touch_updated_at', 'current_tg_id', 'app_error', 'require_user', 'write_audit',
-    'enqueue_notification', 'complete_outbox'
+  -- Only functions the 20261004 marketplace migrations created. Anything else in `public`
+  -- (e.g. Supabase's own rls_auto_enable event-trigger function) is never touched.
+  v_drop text[] := array[
+    'admin_audit_log', 'admin_confirm_payment', 'admin_dashboard', 'admin_get_settings',
+    'admin_get_user', 'admin_list_listings', 'admin_list_payments', 'admin_list_reports',
+    'admin_list_users', 'admin_refund_payment', 'admin_reject_payment', 'admin_remove_listing',
+    'admin_review_queue', 'admin_set_ban', 'admin_set_ban_internal', 'admin_set_role',
+    'admin_set_verified', 'admin_update_settings', 'admin_user_json', 'bootstrap_admin',
+    'can_upload_listing_image', 'can_view_payment_proof', 'card_json', 'claim_outbox',
+    'contains_banned_word', 'count_open_listings', 'create_boost_payment', 'create_listing',
+    'delete_listing', 'ensure_open_payment', 'get_listing', 'get_me', 'get_my_listing',
+    'get_payment', 'get_public_settings', 'get_seller', 'get_settings', 'home_feed', 'is_admin',
+    'is_staff', 'listing_apply_input', 'listing_compute_flags', 'listing_go_live',
+    'listing_missing_fields', 'lock_own_listing', 'moderate_listing', 'my_favorites',
+    'my_listings', 'normalize_reference', 'notify_admins', 'payment_json', 'price_hint',
+    'price_median', 'products_track_status', 'register_view', 'renew_listing', 'request_contact',
+    'require_admin', 'require_staff', 'resolve_report', 'run_maintenance', 'sanitize_specs',
+    'search_listings', 'seller_rating', 'set_listing_images', 'set_listing_status',
+    'set_verified_phone', 'submit_listing', 'submit_payment_reference', 'submit_report',
+    'submit_review', 'toggle_favorite', 'update_listing', 'update_my_profile',
+    'upsert_telegram_profile'
   ];
   f record;
 begin
@@ -38,14 +56,15 @@ begin
   drop policy if exists outbox_admin_read on public.notifications_outbox;
   drop policy if exists audit_admin_read on public.audit_log;
 
-  -- Every remaining public function that is not a kept helper and not owned by an extension.
+  -- Kept from the marketplace: touch_updated_at, current_tg_id, app_error, require_user,
+  -- write_audit, enqueue_notification, complete_outbox.
   for f in
     select p.oid::regprocedure as sig
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public'
       and p.prokind = 'f'
-      and not (p.proname = any (v_keep))
+      and p.proname = any (v_drop)
       and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e')
   loop
     execute format('drop function if exists %s', f.sig);
