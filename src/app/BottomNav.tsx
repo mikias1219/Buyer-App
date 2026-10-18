@@ -1,18 +1,28 @@
-import { Heart, LayoutGrid, Plus, Store, UserRound } from 'lucide-react';
+import { LayoutDashboard, Menu, Package, Receipt, ShoppingCart } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router-dom';
 import { cn } from '../components/ui';
+import { usePermissions } from '../features/auth/hooks';
 import { haptic } from '../lib/telegram';
 
+/** SPEC A6: owner → Dashboard · Products · Sell · Sales · More; staff → Sell · Products · My sales · More. */
 export function BottomNav() {
   const { t } = useTranslation();
-  const items = [
-    { to: '/', label: t('nav.browse'), icon: LayoutGrid, end: true },
-    { to: '/favorites', label: t('nav.saved'), icon: Heart },
-    { to: '/sell', label: t('nav.sell'), icon: Plus, center: true },
-    { to: '/mine', label: t('nav.mine'), icon: Store },
-    { to: '/profile', label: t('nav.profile'), icon: UserRound },
-  ];
+  const { isOwner } = usePermissions();
+  const items = isOwner
+    ? [
+        { to: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
+        { to: '/products', label: t('nav.products'), icon: Package },
+        { to: '/sell', label: t('nav.sell'), icon: ShoppingCart, center: true },
+        { to: '/sales', label: t('nav.sales'), icon: Receipt },
+        { to: '/more', label: t('nav.more'), icon: Menu },
+      ]
+    : [
+        { to: '/products', label: t('nav.products'), icon: Package },
+        { to: '/sell', label: t('nav.sell'), icon: ShoppingCart, center: true },
+        { to: '/sales', label: t('nav.mySales'), icon: Receipt },
+        { to: '/more', label: t('nav.more'), icon: Menu },
+      ];
   return (
     <nav
       aria-label={t('nav.label')}
@@ -20,11 +30,10 @@ export function BottomNav() {
       style={{ paddingBottom: 'var(--safe-bottom)' }}
     >
       <ul className="mx-auto flex max-w-lg items-end justify-around px-2">
-        {items.map(({ to, label, icon: Icon, end, center }) => (
+        {items.map(({ to, label, icon: Icon, center }) => (
           <li key={to} className="flex-1">
             <NavLink
               to={to}
-              end={end}
               onClick={() => haptic.selection()}
               className={({ isActive }) =>
                 cn('press flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold', isActive ? 'text-brand' : 'text-hint')

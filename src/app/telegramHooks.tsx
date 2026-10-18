@@ -7,7 +7,7 @@ import { isInTelegram, showBackButton, showMainButton } from '../lib/telegram';
 export function useTelegramBackButton(fallback = '/') {
   const navigate = useNavigate();
   const location = useLocation();
-  const isRoot = ['/', '/favorites', '/mine', '/profile', '/search'].includes(location.pathname);
+  const isRoot = ['/', '/dashboard', '/products', '/sell', '/sales', '/more'].includes(location.pathname);
   useEffect(() => {
     if (isRoot) return;
     return showBackButton(() => {

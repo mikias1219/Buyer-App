@@ -1,4 +1,4 @@
-import { Clock, Send, Settings2, ShoppingBag } from 'lucide-react';
+import { Clock, Send, Settings2, Store } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, EmptyState, ErrorState, Spinner } from '../components/ui';
@@ -20,7 +20,7 @@ export function BootGate({ children }: { children: ReactNode }) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 text-brand" role="status" aria-label={t('common.loading')}>
         <span className="flex size-16 items-center justify-center rounded-2xl bg-brand text-brand-contrast shadow-lg">
-          <ShoppingBag aria-hidden className="size-8" />
+          <Store aria-hidden className="size-8" />
         </span>
         <Spinner />
       </div>
@@ -44,6 +44,10 @@ export function BootGate({ children }: { children: ReactNode }) {
         />
       </FullScreen>
     );
+  }
+  if (session.status === 'guest') {
+    // Opened in a normal browser: the shop is private, sign-in happens only through Telegram.
+    return <FullScreen><EmptyState icon={Send} title={t('boot.guestTitle')} description={t('boot.guestBody')} /></FullScreen>;
   }
   if (session.status === 'error') {
     return (

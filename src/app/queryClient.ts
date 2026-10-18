@@ -5,6 +5,7 @@ const NO_RETRY = new Set([
   'not_found',
   'not_authorized',
   'not_authenticated',
+  'no_access',
   'banned',
   'invalid_input',
   'not_configured',
@@ -24,28 +25,30 @@ export const queryClient = new QueryClient({
   },
 });
 
+/** Query keys per feature. Mutations invalidate by prefix (e.g. ['products'] after a sale). */
 export const qk = {
   me: ['me'] as const,
   settings: ['settings'] as const,
-  home: (city: string | null) => ['home', city] as const,
-  search: (filters: object) => ['search', filters] as const,
-  listing: (id: string) => ['listing', id] as const,
-  seller: (id: string) => ['seller', id] as const,
-  favorites: ['favorites'] as const,
-  myListings: ['myListings'] as const,
-  myListing: (id: string) => ['myListing', id] as const,
-  payment: (id: string) => ['payment', id] as const,
-  priceHint: (category: string, brand: string) => ['priceHint', category, brand] as const,
-  admin: {
-    all: ['admin'] as const,
-    dashboard: ['admin', 'dashboard'] as const,
-    queue: ['admin', 'queue'] as const,
-    payments: (status: string, search: string) => ['admin', 'payments', status, search] as const,
-    reports: (status: string) => ['admin', 'reports', status] as const,
-    users: (search: string, filter: string) => ['admin', 'users', search, filter] as const,
-    user: (id: string) => ['admin', 'user', id] as const,
-    listings: (status: string, search: string) => ['admin', 'listings', status, search] as const,
-    settings: ['admin', 'settings'] as const,
-    audit: (action: string, target: string) => ['admin', 'audit', action, target] as const,
+  team: ['team'] as const,
+  categories: (includeArchived: boolean) => ['categories', includeArchived] as const,
+  products: {
+    all: ['products'] as const,
+    list: (filters: object) => ['products', 'list', filters] as const,
+    detail: (id: string) => ['products', 'detail', id] as const,
+    movements: (id: string) => ['products', 'movements', id] as const,
+    lowStock: ['products', 'low-stock'] as const,
+  },
+  sales: {
+    all: ['sales'] as const,
+    list: (filters: object) => ['sales', 'list', filters] as const,
+    detail: (id: string) => ['sales', 'detail', id] as const,
+  },
+  expenses: {
+    all: ['expenses'] as const,
+    list: (filters: object) => ['expenses', 'list', filters] as const,
+  },
+  reports: {
+    all: ['reports'] as const,
+    of: (name: string, args: object) => ['reports', name, args] as const,
   },
 };

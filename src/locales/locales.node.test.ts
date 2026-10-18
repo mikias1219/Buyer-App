@@ -1,17 +1,9 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import {
-  CATEGORIES,
-  CONDITIONS,
-  LISTING_REJECT_REASONS,
-  LISTING_STATUSES,
-  PAYMENT_REJECT_REASONS,
-  REPORT_REASONS,
-} from '../lib/api/types';
+import { EXPENSE_CATEGORIES, MOVEMENT_TYPES, PAYMENT_METHODS, STOCK_STATUSES, UNITS } from '../lib/api/types';
 import { KNOWN_ERROR_CODES } from '../lib/api/errors';
-import { MINE_TABS } from '../features/listings/logic';
-import { CATEGORY_FIELDS } from '../features/sell/categoryFields';
+import { PERIOD_PRESETS } from '../lib/period';
 import am from './am.json';
 import en from './en.json';
 
@@ -46,33 +38,23 @@ const code = sourceFiles(SRC).map((f) => readFileSync(f, 'utf8')).join('\n');
 describe('locales', () => {
   it('every static t() key used in the code exists in English', () => {
     const used = new Set([...code.matchAll(/\bt\(\s*'([a-zA-Z0-9_.]+)'/g)].map((m) => m[1] ?? ''));
-    const validation = new Set([...code.matchAll(/'(validation\.[a-zA-Z]+)'/g)].map((m) => m[1] ?? ''));
+    const validation = new Set([...code.matchAll(/'(validation\.[a-zA-Z0-9]+)'/g)].map((m) => m[1] ?? ''));
     const missing = [...used, ...validation].filter((k) => !has(EN, k));
     expect(missing).toEqual([]);
   });
 
   it('dynamic key families are complete', () => {
     const families: Array<[string, readonly string[]]> = [
-      ['category', CATEGORIES],
-      ['condition', CONDITIONS],
-      ['conditionHelp', CONDITIONS],
-      ['status', LISTING_STATUSES],
-      ['owner.statusHelp', LISTING_STATUSES],
-      ['paymentStatus', ['pending', 'submitted', 'confirmed', 'rejected', 'refunded']],
-      ['rejectReason', [...LISTING_REJECT_REASONS, ...PAYMENT_REJECT_REASONS]],
-      ['reportReason', REPORT_REASONS],
       ['errors', KNOWN_ERROR_CODES],
-      ['mine.tab', MINE_TABS],
-      ['mine.empty', MINE_TABS],
-      ['specs', [...new Set(Object.values(CATEGORY_FIELDS).flat().map((f) => f.key))]],
-      ['fields', ['title', 'description', 'price', 'category', 'condition', 'city', 'photos', 'brand', 'model']],
-      ['owner.action', ['continue', 'edit', 'fix', 'resubmit', 'pay', 'view_payment', 'pause', 'resume', 'mark_sold', 'renew', 'boost', 'delete']],
-      ['role', ['user', 'moderator', 'admin']],
-      ['flag', ['price_low', 'price_high', 'duplicate_image']],
-      ['sell.steps', ['photos', 'details', 'price', 'review']],
-      ['pay.title', ['listing', 'renew', 'boost']],
-      ['pay.subtitle', ['listing', 'renew', 'boost']],
-      ['admin.payments.kind', ['listing', 'renew', 'boost']],
+      ['role', ['user', 'staff', 'owner']],
+      ['stock', STOCK_STATUSES],
+      ['unit', UNITS],
+      ['unitShort', UNITS],
+      ['period', [...PERIOD_PRESETS, 'custom']],
+      ['paymentMethod', PAYMENT_METHODS],
+      ['expenseCategory', EXPENSE_CATEGORIES],
+      ['movement', MOVEMENT_TYPES],
+      ['language', ['en', 'am']],
     ];
     const missing = families.flatMap(([prefix, values]) => values.map((v) => `${prefix}.${v}`)).filter((k) => !has(EN, k));
     expect(missing).toEqual([]);

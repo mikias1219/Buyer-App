@@ -7,7 +7,7 @@ import { getInitData } from '../../lib/telegram';
 
 /**
  * Session lifecycle:
- *  booting → authenticated (Telegram) | guest (opened outside Telegram: browse only)
+ *  booting → authenticated (Telegram) | guest (opened outside Telegram: the shop is private)
  *          | expired (initData older than 24h: reopen from the bot) | error (retryable) | unconfigured
  * The JWT lives only in memory (tokenStore) and is refreshed 5 minutes before expiry.
  */
