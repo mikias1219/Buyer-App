@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   escapeHtml,
   formatEtb,
+  formatQty,
   isPermanentTelegramError,
+  lowStockText,
   NOTIFICATION_KINDS,
   renderNotification,
+  summaryText,
   type LinkConfig,
   type OutboxRow,
 } from './messages.ts';
@@ -17,7 +20,25 @@ function row(kind: string, language = 'en', payload: Record<string, unknown> = {
     chat_id: '42',
     kind,
     language,
-    payload: { name: '<b>Abel</b> & co', username: 'abel_k', role: 'staff', ...payload },
+    payload: {
+      name: '<b>Abel</b> & co',
+      username: 'abel_k',
+      role: 'staff',
+      unit: 'kg',
+      stock_qty: 2.5,
+      reorder_level: 5,
+      shop_name: 'Demo Shop',
+      date: '2026-10-18',
+      revenue: 9455,
+      gross_profit: 1625,
+      expenses: 300,
+      net_profit: 1210,
+      sales_count: 3,
+      items_sold: 12,
+      low_count: 1,
+      receivables: 0,
+      ...payload,
+    },
   };
 }
 
@@ -48,6 +69,27 @@ describe('renderNotification', () => {
   it('unknown kinds are skipped, unknown languages fall back to English', () => {
     expect(renderNotification(row('nope'), cfg)).toBeNull();
     expect(renderNotification(row('access_request', 'fr'), cfg)?.text).toContain('asking for access');
+  });
+});
+
+describe('shop messages', () => {
+  it('low-stock alert names the product and opens filtered products', () => {
+    const msg = renderNotification(row('low_stock'), cfg);
+    expect(msg?.text).toContain('2.5 kg left');
+    expect(msg?.button?.webAppUrl).toBe('https://shop.example/#/products?stock=low');
+  });
+  it('daily summary lists the key numbers', () => {
+    const text = summaryText('en', row('daily_summary').payload);
+    expect(text).toContain('Revenue: <b>ETB 9,455</b>');
+    expect(text).toContain('Net profit: <b>ETB 1,210</b>');
+    expect(text).not.toContain('Unpaid credit');
+    expect(summaryText('en', { ...row('daily_summary').payload, receivables: 500 })).toContain('Unpaid credit: ETB 500');
+    expect(summaryText('am', row('daily_summary').payload)).toContain('ገቢ');
+  });
+  it('low-stock list', () => {
+    expect(lowStockText('en', [])).toBe('Everything is well stocked.');
+    expect(lowStockText('en', [{ name: 'Rice', stock_qty: 3, unit: 'kg' }])).toContain('• Rice: 3 kg');
+    expect(formatQty(90.75)).toBe('90.75');
   });
 });
 

@@ -1,8 +1,10 @@
 // Telegram bot webhook. Set with:
 //   https://api.telegram.org/bot<TOKEN>/setWebhook?url=<FUNCTIONS_URL>/bot-webhook&secret_token=<WEBHOOK_SECRET>
-// Handles /start and /help in private chats: opens the Mini App on the right screen for the
-// sender's role. Owner commands (/today, /lowstock) arrive in Phase 6.
-import { toLang, type Lang } from '../_shared/messages.ts';
+// Private chats only:
+//   /start, /help  → open the Mini App
+//   /today         → today's numbers (owners)
+//   /lowstock      → products at or below their reorder level (owners and staff)
+import { lowStockText, summaryText, toLang, type Lang } from '../_shared/messages.ts';
 import { timingSafeEqual } from '../_shared/telegramAuth.ts';
 import { env, serve, serviceClient } from '../_shared/runtime.ts';
 
@@ -26,13 +28,15 @@ const TEXT: Record<Lang, Record<string, string>> = {
     welcome_member: 'Welcome back. Tap <b>Open shop</b> to sell, check stock or see today\'s numbers.',
     welcome_user: 'This bot runs a private shop app. Open it once and ask the shop owner to give you access.',
     open: 'Open shop',
-    help: 'Tap <b>Open shop</b> to record sales, manage products and stock, and see reports.',
+    help: 'Tap <b>Open shop</b> to record sales, manage products and stock, and see reports.\n\n/today — today\'s numbers (owner)\n/lowstock — products running out',
+    noAccess: 'You don\'t have access to this shop yet. Ask the owner.',
   },
   am: {
     welcome_member: 'እንኳን ደህና መጡ። ለመሸጥ፣ ክምችት ለማየት ወይም የዛሬውን ሂሳብ ለማየት <b>ሱቁን ይክፈቱ</b> የሚለውን ይጫኑ።',
     welcome_user: 'ይህ ቦት የግል የሱቅ መተግበሪያ ነው። አንድ ጊዜ ይክፈቱት እና የሱቁን ባለቤት ፈቃድ ይጠይቁ።',
     open: 'ሱቁን ይክፈቱ',
-    help: 'ሽያጭ ለመመዝገብ፣ ዕቃዎችንና ክምችትን ለማስተዳደር እና ሪፖርቶችን ለማየት <b>ሱቁን ይክፈቱ</b> የሚለውን ይጫኑ።',
+    help: 'ሽያጭ ለመመዝገብ፣ ዕቃዎችንና ክምችትን ለማስተዳደር እና ሪፖርቶችን ለማየት <b>ሱቁን ይክፈቱ</b> የሚለውን ይጫኑ።\n\n/today — የዛሬ ሂሳብ (ባለቤት)\n/lowstock — እያለቁ ያሉ ዕቃዎች',
+    noAccess: 'ገና የዚህ ሱቅ ፈቃድ የለዎትም። ባለቤቱን ይጠይቁ።',
   },
 };
 
@@ -73,9 +77,20 @@ serve(async (req) => {
   const { data: role } = await db.rpc('member_role', { p_telegram_id: tgId });
   const isMember = role === 'owner' || role === 'staff';
 
-  const command = (msg.text ?? '').trim().split(/\s+/, 1)[0];
-  const button = { inline_keyboard: [[{ text: t.open, web_app: { url: appUrl('/') } }]] };
-  const text = command === '/start' ? (isMember ? t.welcome_member : t.welcome_user) : t.help;
-  await call('sendMessage', { chat_id: msg.chat.id, text, parse_mode: 'HTML', reply_markup: button });
+  // "/today@ShopBot" → "/today"
+  const command = ((msg.text ?? '').trim().split(/\s+/, 1)[0] ?? '').split('@')[0];
+  const button = (path: string) => ({ inline_keyboard: [[{ text: t.open, web_app: { url: appUrl(path) } }]] });
+  const send = (text: string, path = '/') =>
+    call('sendMessage', { chat_id: msg.chat.id, text, parse_mode: 'HTML', reply_markup: button(path) });
+
+  if (command === '/today') {
+    const { data } = await db.rpc('bot_today', { p_telegram_id: tgId });
+    await send(data ? summaryText(lang, data as Record<string, unknown>) : t.noAccess, '/dashboard');
+  } else if (command === '/lowstock') {
+    const { data } = await db.rpc('bot_low_stock', { p_telegram_id: tgId });
+    await send(Array.isArray(data) ? lowStockText(lang, data as Array<Record<string, unknown>>) : t.noAccess, '/products?stock=low');
+  } else {
+    await send(command === '/start' ? (isMember ? t.welcome_member : t.welcome_user) : t.help);
+  }
   return new Response('ok');
 });

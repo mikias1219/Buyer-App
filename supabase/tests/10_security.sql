@@ -103,7 +103,7 @@ select tap.eq((
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and has_function_privilege('authenticated', p.oid, 'execute')
     and p.prorettype <> 'event_trigger'::regtype
-), 38, 'authenticated can execute exactly the 38 client RPCs');
+), 44, 'authenticated can execute exactly the 44 client RPCs');
 select tap.ok(not has_function_privilege('authenticated', p.oid, 'execute'),
               format('internal helper %s is not client-callable', p.proname))
 from pg_proc p join pg_namespace n on n.oid = p.pronamespace

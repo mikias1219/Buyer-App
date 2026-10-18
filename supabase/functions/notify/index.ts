@@ -1,5 +1,6 @@
 // Scheduled worker (call every minute with header `x-cron-secret: $CRON_SECRET`).
-// Drains notifications_outbox with retries/backoff; permanent failures stop and mark bot_blocked.
+//  1. queue_daily_summary(): queues today's summary to owners once, after the configured time.
+//  2. Drains notifications_outbox with retries/backoff; permanent failures stop and mark bot_blocked.
 import { isPermanentTelegramError, renderNotification, type LinkConfig, type OutboxRow } from '../_shared/messages.ts';
 import { timingSafeEqual } from '../_shared/telegramAuth.ts';
 import { env, serve, serviceClient } from '../_shared/runtime.ts';
@@ -37,6 +38,8 @@ serve(async (req) => {
 
   const db = serviceClient();
   const cfg: LinkConfig = { miniAppUrl: env('MINI_APP_URL', false) };
+  const summary = await db.rpc('queue_daily_summary');
+  if (summary.error) console.error('queue_daily_summary', summary.error.message);
 
   const { data: rows, error } = await db.rpc('claim_outbox', { p_limit: 50 });
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 });
@@ -75,7 +78,7 @@ serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify({ sent, failed }), {
+  return new Response(JSON.stringify({ summary_queued: summary.data === true, sent, failed }), {
     headers: { 'Content-Type': 'application/json' },
   });
 });
