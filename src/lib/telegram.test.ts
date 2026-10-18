@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildShareUrl, isInTelegram, requestContact, showMainButton } from './telegram';
+import { buildShareUrl, isInTelegram, showMainButton } from './telegram';
 
 function stubWindow(webApp: unknown, search = '') {
   vi.stubGlobal('window', {
@@ -27,11 +27,6 @@ describe('browser fallbacks', () => {
     const cleanup = showMainButton({ text: 'Go', onClick: () => {} });
     expect(() => cleanup()).not.toThrow();
   });
-
-  it('requestContact reports unsupported outside Telegram', async () => {
-    stubWindow(undefined);
-    await expect(requestContact()).resolves.toEqual({ ok: false, reason: 'unsupported' });
-  });
 });
 
 describe('inside Telegram', () => {
@@ -54,24 +49,6 @@ describe('inside Telegram', () => {
     cleanup();
     expect(btn.offClick).toHaveBeenCalledWith(onClick);
     expect(btn.hide).toHaveBeenCalled();
-  });
-
-  it('returns the signed contact response', async () => {
-    stubWindow({
-      initData: 'x',
-      isVersionAtLeast: () => true,
-      requestContact: (cb: (ok: boolean, r: unknown) => void) =>
-        cb(true, {
-          status: 'sent',
-          response: 'contact=...&hash=h',
-          responseUnsafe: { contact: { phone_number: '251911000000' } },
-        }),
-    });
-    await expect(requestContact()).resolves.toEqual({
-      ok: true,
-      response: 'contact=...&hash=h',
-      phone: '251911000000',
-    });
   });
 });
 

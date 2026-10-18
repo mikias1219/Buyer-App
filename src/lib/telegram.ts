@@ -55,13 +55,6 @@ interface BackButtonApi {
   offClick(cb: () => void): void;
 }
 
-interface RequestContactResult {
-  status: 'sent' | 'cancelled';
-  /** Signed query string; validate server-side like initData. */
-  response?: string;
-  responseUnsafe?: { contact?: { phone_number?: string; user_id?: number } };
-}
-
 export interface TelegramWebApp {
   initData: string;
   initDataUnsafe: { user?: TelegramUnsafeUser; start_param?: string; auth_date?: number };
@@ -82,7 +75,6 @@ export interface TelegramWebApp {
   showConfirm(message: string, cb?: (ok: boolean) => void): void;
   openLink(url: string): void;
   openTelegramLink(url: string): void;
-  requestContact?(cb?: (ok: boolean, result?: RequestContactResult) => void): void;
   MainButton: BottomButton;
   BackButton: BackButtonApi;
   HapticFeedback?: {
@@ -294,30 +286,6 @@ export function buildShareUrl(link: string, text: string): string {
 
 export function shareLink(link: string, text: string): void {
   openTelegramLink(buildShareUrl(link, text));
-}
-
-// ─── Contact (phone verification) ───────────────────────────────────
-
-export type ContactRequestResult =
-  | { ok: true; response: string; phone?: string }
-  | { ok: false; reason: 'unsupported' | 'cancelled' };
-
-/** Ask the user to share their phone. `response` must be verified by the backend. */
-export function requestContact(): Promise<ContactRequestResult> {
-  const tg = getWebApp();
-  if (!tg?.initData || !tg.requestContact || !supports('6.9')) {
-    return Promise.resolve({ ok: false, reason: 'unsupported' });
-  }
-  return new Promise((resolve) => {
-    tg.requestContact?.((ok, result) => {
-      if (ok && result?.response) {
-        const phone = result.responseUnsafe?.contact?.phone_number;
-        resolve(phone ? { ok: true, response: result.response, phone } : { ok: true, response: result.response });
-      } else {
-        resolve({ ok: false, reason: 'cancelled' });
-      }
-    });
-  });
 }
 
 // ─── Cloud storage (falls back to localStorage) ─────────────────────
