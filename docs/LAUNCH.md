@@ -37,3 +37,9 @@
 - Reports: download a CSV (Telegram Desktop or browser).
 - Staff account: no cost/profit anywhere, no Dashboard, only own sales today.
 - Bot: `/today`, `/lowstock`.
+
+## Start over (remove all shop data)
+
+`bash scripts/reset-shop-data.sh` with `SUPABASE_DB_URL` set. It shows what will be deleted,
+saves a backup to `backups/` (git-ignored), and asks you to type `DELETE`. Products, categories,
+sales, stock history, expenses and customers are removed; team members and settings stay.
