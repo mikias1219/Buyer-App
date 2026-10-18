@@ -10,8 +10,8 @@ test('owner lands on the dashboard and sees the full navigation', async ({ page 
     await expect(nav.getByRole('link', { name })).toBeVisible();
   }
   await nav.getByRole('link', { name: 'More' }).click();
-  await expect(page.getByRole('link', { name: 'Team' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Settings' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Team', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Settings', exact: true })).toBeVisible();
 });
 
 test('staff land on Sell and cannot open owner screens', async ({ page }) => {
@@ -24,7 +24,7 @@ test('staff land on Sell and cannot open owner screens', async ({ page }) => {
   await page.goto('/#/more/settings');
   await expect(page.getByText('Owner only')).toBeVisible();
   await page.goto('/#/more');
-  await expect(page.getByRole('link', { name: 'Team' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Team', exact: true })).toHaveCount(0);
 });
 
 test('a user without access sees the no-access screen, no navigation', async ({ page }) => {
@@ -63,6 +63,7 @@ test('language switch to Amharic', async ({ page }) => {
   await actAs(page, USERS.owner);
   await page.goto('/#/more');
   await page.getByRole('radio', { name: 'አማርኛ' }).click();
-  await expect(page.getByRole('navigation', { name: 'ዋና ማውጫ' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'ዕቃዎች' })).toBeVisible();
+  const nav = page.getByRole('navigation', { name: 'ዋና ማውጫ' });
+  await expect(nav).toBeVisible();
+  await expect(nav.getByRole('link', { name: 'ዕቃዎች', exact: true })).toBeVisible();
 });
