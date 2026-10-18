@@ -1,3 +1,6 @@
--- Seed: platform settings only. No personal data — set Telebirr details, bot username
--- and channel from the admin Settings screen (or with admin_update_settings) after deploy.
-insert into public.platform_settings (id) values (1) on conflict (id) do nothing;
+-- Seed (local dev / tests only): shop settings row and a few starter categories.
+-- No personal data. Set the shop name and options from Settings after deploy.
+insert into public.shop_settings (id) values (1) on conflict (id) do nothing;
+insert into public.categories (name, sort) values
+  ('Phones', 10), ('Accessories', 20), ('Electronics', 30), ('Other', 90)
+on conflict do nothing;

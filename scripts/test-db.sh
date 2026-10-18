@@ -49,26 +49,34 @@ echo "▸ Supabase stubs"
 run "$ROOT/supabase/tests/00_supabase_stubs.sql"
 echo "▸ Migrations"
 for f in "$ROOT"/supabase/migrations/*.sql; do run "$f"; done
-echo "▸ Migrations are re-runnable"
-for f in "$ROOT"/supabase/migrations/*.sql; do "${PSQL[@]}" "$DB_URL" -f "$f" >/dev/null; done
+echo "▸ Shop migrations are re-runnable"
+# Migrations before the shop reset (20261018…) are superseded by it and are not re-applied.
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  [[ "$(basename "$f")" < "20261018" ]] && continue
+  "${PSQL[@]}" "$DB_URL" -f "$f" >/dev/null
+done
 echo "▸ Seed"
 run "$ROOT/supabase/seed.sql"
 echo "▸ Tests"
-for f in "$ROOT"/supabase/tests/*.sql; do
+for f in "$ROOT"/supabase/tests/*.sql; do   # upgrade/ runs separately below
   [[ "$(basename "$f")" == 00_* ]] && continue
   run "$f"
 done
 
-echo "▸ Legacy MVP → v1 migration path"
-LEGACY_URL="${DB_URL/techmarket_test/techmarket_legacy}"
-"${PSQL[@]}" "$ADMIN_URL" -c "drop database if exists techmarket_legacy" -c "create database techmarket_legacy"
-for f in supabase/tests/00_supabase_stubs.sql supabase/tests/01_tap.sql supabase/tests/legacy/mvp_schema.sql \
-         supabase/tests/legacy/sample_data.sql; do
-  "${PSQL[@]}" "$LEGACY_URL" -o /dev/null -f "$ROOT/$f"
+echo "▸ Production upgrade path (marketplace data → shop)"
+UP_URL="${DB_URL/techmarket_test/techmarket_upgrade}"
+"${PSQL[@]}" "$ADMIN_URL" -c "drop database if exists techmarket_upgrade" -c "create database techmarket_upgrade"
+"${PSQL[@]}" "$UP_URL" -o /dev/null -f "$ROOT/supabase/tests/00_supabase_stubs.sql"
+"${PSQL[@]}" "$UP_URL" -o /dev/null -f "$ROOT/supabase/tests/01_tap.sql"
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  [[ "$(basename "$f")" < "20261018" ]] || continue
+  "${PSQL[@]}" "$UP_URL" -o /dev/null -f "$f"
 done
-for f in "$ROOT"/supabase/migrations/*.sql; do "${PSQL[@]}" "$LEGACY_URL" -o /dev/null -f "$f"; done
-"${PSQL[@]}" "$LEGACY_URL" -o /dev/null -f "$ROOT/supabase/scripts/migrate_legacy.sql"
-"${PSQL[@]}" "$LEGACY_URL" -o /dev/null -f "$ROOT/supabase/scripts/migrate_legacy.sql"   # idempotent
-echo "  · legacy/verify.sql"
-"${PSQL[@]}" "$LEGACY_URL" -o /dev/null -f "$ROOT/supabase/tests/legacy/verify.sql"
+"${PSQL[@]}" "$UP_URL" -o /dev/null -f "$ROOT/supabase/tests/upgrade/marketplace_data.sql"
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  [[ "$(basename "$f")" < "20261018" ]] && continue
+  "${PSQL[@]}" "$UP_URL" -o /dev/null -f "$f"
+done
+echo "  · upgrade/verify.sql"
+"${PSQL[@]}" "$UP_URL" -o /dev/null -f "$ROOT/supabase/tests/upgrade/verify.sql"
 echo "✓ database tests passed"
