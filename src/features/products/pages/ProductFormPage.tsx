@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Save } from 'lucide-react';
+import { ChevronDown, Save } from 'lucide-react';
 import { useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -10,10 +10,10 @@ import {
   ErrorState,
   ImageUploader,
   Input,
+  Money,
   NumberInput,
   PageHeader,
   PageSkeleton,
-  Section,
   Select,
   Textarea,
   toast,
@@ -24,7 +24,7 @@ import { toAppError } from '../../../lib/api/errors';
 import { UNITS, type Product, type ProductInput } from '../../../lib/api/types';
 import { useErrorMessage } from '../../../lib/useErrorMessage';
 import { useShopSettings } from '../../auth/hooks';
-import { uploadProductImage, useCategories, useProduct, useSaveProduct } from '../api';
+import { uploadProductImage, useProduct, useSaveProduct } from '../api';
 import { isWholeUnit } from '../logic';
 import { productSchema, type ProductForm } from '../schema';
 
@@ -40,7 +40,6 @@ function ProductFormView({ product }: { product: Product | undefined }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const settings = useShopSettings();
-  const categories = useCategories();
   const save = useSaveProduct();
   const errorMessage = useErrorMessage();
   const editing = Boolean(product);
@@ -62,10 +61,12 @@ function ProductFormView({ product }: { product: Product | undefined }) {
     },
   });
   const { control, register, handleSubmit, formState, setValue, setError } = form;
-  const [unit, name, notes, imagePath, sellPrice, costPrice] = useWatch({
+  const [unit, name, notes, sellPrice, costPrice] = useWatch({
     control,
-    name: ['unit', 'name', 'notes', 'image_path', 'sell_price', 'cost_price'],
+    name: ['unit', 'name', 'notes', 'sell_price', 'cost_price'],
   });
+  // Optional fields stay folded away unless the product already uses them.
+  const [showMore, setShowMore] = useState(Boolean(product?.image_path || product?.barcode || product?.notes));
   const err = (m?: string) => (m ? t(m) : undefined);
   const decimals = isWholeUnit(unit) ? 0 : 3;
 
@@ -120,80 +121,70 @@ function ProductFormView({ product }: { product: Product | undefined }) {
     );
   });
 
-  const margin = sellPrice > 0 && costPrice >= 0 ? Math.round(((sellPrice - costPrice) / sellPrice) * 1000) / 10 : null;
+  const profitEach = sellPrice > 0 && costPrice > 0 ? Math.round((sellPrice - costPrice) * 100) / 100 : null;
 
   return (
     <form onSubmit={(e) => void submit(e)} noValidate className="space-y-5">
       <PageHeader title={editing ? t('productForm.editTitle') : t('productForm.newTitle')} />
 
-      <Section title={t('productForm.basics')}>
-        <Card className="space-y-4">
-          <Input label={t('productForm.name')} maxLength={120} value={name} error={err(formState.errors.name?.message)} {...register('name')} />
-          <Select
-            label={t('productForm.category')}
-            placeholder={t('productForm.noCategory')}
-            options={(categories.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
-            {...register('category_id', { setValueAs: (v: string) => v || null })}
-          />
-          <Select
-            label={t('productForm.unit')}
-            hint={t('productForm.unitHint')}
-            options={UNITS.map((u) => ({ value: u, label: t(`unit.${u}`) }))}
-            error={err(formState.errors.unit?.message)}
-            {...register('unit')}
-          />
-        </Card>
-      </Section>
-
-      <Section title={t('productForm.pricing')}>
-        <Card className="space-y-4">
+      <Card className="space-y-4">
+        <Input label={t('productForm.name')} maxLength={120} value={name} error={err(formState.errors.name?.message)} {...register('name')} />
+        <Controller
+          control={control}
+          name="sell_price"
+          render={({ field }) => (
+            <NumberInput label={t('productForm.sellPrice')} prefix="ETB" decimals={2} value={field.value ?? null} onChange={field.onChange} error={err(formState.errors.sell_price?.message)} />
+          )}
+        />
+        <Controller
+          control={control}
+          name="cost_price"
+          render={({ field }) => (
+            <NumberInput
+              label={t('productForm.costPrice')}
+              hint={editing ? t('productForm.avgCostHint') : t('productForm.costPriceHint')}
+              prefix="ETB"
+              decimals={2}
+              value={field.value ?? null}
+              onChange={(v) => field.onChange(v ?? 0)}
+              error={err(formState.errors.cost_price?.message)}
+            />
+          )}
+        />
+        {profitEach !== null ? (
+          <p className={profitEach < 0 ? 'text-sm font-semibold text-danger' : 'text-sm text-hint'}>
+            {t('productForm.profitEach')} <Money value={profitEach} tone="auto" className="font-semibold" />
+          </p>
+        ) : null}
+        {!editing ? (
           <Controller
             control={control}
-            name="sell_price"
-            render={({ field }) => (
-              <NumberInput label={t('productForm.sellPrice')} prefix="ETB" decimals={2} value={field.value ?? null} onChange={field.onChange} error={err(formState.errors.sell_price?.message)} />
-            )}
-          />
-          <Controller
-            control={control}
-            name="cost_price"
+            name="opening_stock"
             render={({ field }) => (
               <NumberInput
-                label={editing ? t('productForm.avgCost') : t('productForm.costPrice')}
-                hint={editing ? t('productForm.avgCostHint') : t('productForm.costPriceHint')}
-                prefix="ETB"
-                decimals={2}
-                value={field.value ?? null}
-                onChange={(v) => field.onChange(v ?? 0)}
-                error={err(formState.errors.cost_price?.message)}
+                label={t('productForm.openingStock')}
+                hint={t('productForm.openingStockHint')}
+                suffix={t(`unitShort.${unit}`, { count: 2 })}
+                decimals={decimals}
+                value={field.value}
+                onChange={field.onChange}
+                error={err(formState.errors.opening_stock?.message)}
               />
             )}
           />
-          {margin !== null ? <p className="text-sm text-hint">{t('productForm.marginPreview', { value: margin })}</p> : null}
-        </Card>
-      </Section>
+        ) : (
+          <p className="text-sm text-hint">{t('productForm.stockEditNote')}</p>
+        )}
+        <Select
+          label={t('productForm.unit')}
+          options={UNITS.map((u) => ({ value: u, label: t(`unit.${u}`) }))}
+          error={err(formState.errors.unit?.message)}
+          {...register('unit')}
+        />
+      </Card>
 
-      <Section title={t('productForm.stock')}>
+      {showMore ? (
         <Card className="space-y-4">
-          {!editing ? (
-            <Controller
-              control={control}
-              name="opening_stock"
-              render={({ field }) => (
-                <NumberInput
-                  label={t('productForm.openingStock')}
-                  hint={t('productForm.openingStockHint')}
-                  suffix={t(`unitShort.${unit}`, { count: 2 })}
-                  decimals={decimals}
-                  value={field.value}
-                  onChange={field.onChange}
-                  error={err(formState.errors.opening_stock?.message)}
-                />
-              )}
-            />
-          ) : (
-            <p className="text-sm text-hint">{t('productForm.stockEditNote')}</p>
-          )}
           <Controller
             control={control}
             name="reorder_level"
@@ -209,21 +200,10 @@ function ProductFormView({ product }: { product: Product | undefined }) {
               />
             )}
           />
-        </Card>
-      </Section>
-
-      <Section title={t('productForm.more')}>
-        <Card className="space-y-4">
-          <Input label="SKU" optionalLabel={t('common.optional')} hint={t('productForm.skuHint')} error={err(formState.errors.sku?.message)} {...register('sku')} />
-          <Input
-            label={t('productForm.barcode')}
-            optionalLabel={t('common.optional')}
-            inputMode="numeric"
-            error={err(formState.errors.barcode?.message)}
-            {...register('barcode')}
-          />
           <div className="space-y-1.5">
-            <p className="text-sm font-semibold">{t('productForm.photo')}</p>
+            <p className="text-sm font-semibold">
+              {t('productForm.photo')} <span className="font-normal text-hint">({t('common.optional')})</span>
+            </p>
             <ImageUploader
               items={photo ? [photo] : []}
               max={1}
@@ -239,11 +219,21 @@ function ProductFormView({ product }: { product: Product | undefined }) {
               onMakeCover={() => undefined}
               onRetry={() => undefined}
             />
-            {imagePath === '' && photo === null ? <p className="text-xs text-hint">{t('productForm.photoHint')}</p> : null}
           </div>
+          <Input
+            label={t('productForm.barcode')}
+            optionalLabel={t('common.optional')}
+            inputMode="numeric"
+            error={err(formState.errors.barcode?.message)}
+            {...register('barcode')}
+          />
           <Textarea label={t('productForm.notes')} optionalLabel={t('common.optional')} rows={2} maxLength={500} value={notes} {...register('notes')} />
         </Card>
-      </Section>
+      ) : (
+        <Button variant="ghost" block icon={ChevronDown} onClick={() => setShowMore(true)}>
+          {t('productForm.moreOptions')}
+        </Button>
+      )}
 
       <Button type="submit" block size="lg" icon={Save} loading={save.isPending} disabled={uploading}>
         {editing ? t('productForm.save') : t('productForm.create')}

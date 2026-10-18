@@ -10,7 +10,7 @@ import { downloadText } from '../../lib/csv';
 import { formatNumber } from '../../lib/format';
 import { useErrorMessage } from '../../lib/useErrorMessage';
 import { invalidateStock } from '../products/api';
-import { importTemplate, parseImport, type ParsedImport } from './logic';
+import { importTemplate, parseImport, TEMPLATE_COLUMNS, type ParsedImport } from './logic';
 
 export default function ImportPage() {
   const { t } = useTranslation();
@@ -52,7 +52,7 @@ export default function ImportPage() {
       <Section title={t('import.step1')}>
         <Card className="space-y-3">
           <p className="text-sm text-hint">{t('import.templateBody')}</p>
-          <p className="tabular break-all rounded-input bg-surface-2 p-2 text-xs">name, category, sku, barcode, unit, sell_price, cost_price, opening_stock, reorder_level</p>
+          <p className="tabular break-all rounded-input bg-surface-2 p-2 text-xs">{TEMPLATE_COLUMNS.join(', ')}</p>
           <Button variant="secondary" icon={Download} onClick={() => downloadText('products_template.csv', importTemplate())}>
             {t('import.downloadTemplate')}
           </Button>
@@ -102,7 +102,7 @@ export default function ImportPage() {
                     <ListRow
                       key={i}
                       title={r.name}
-                      subtitle={[r.category, r.unit ? t(`unit.${r.unit}`) : null, r.opening_stock !== undefined ? t('import.stockN', { qty: formatNumber(r.opening_stock) }) : null].filter(Boolean).join(' · ')}
+                      subtitle={[r.unit ? t(`unit.${r.unit}`) : null, r.opening_stock !== undefined ? t('import.stockN', { qty: formatNumber(r.opening_stock) }) : null].filter(Boolean).join(' · ')}
                       trailing={<Money value={r.sell_price} />}
                     />
                   ))}
@@ -126,7 +126,7 @@ export default function ImportPage() {
           ) : null}
           {serverOk ? (
             <Notice tone="success" icon={ListChecks}>
-              {t('import.checked', { count: check.valid, categories: check.new_categories })}
+              {t('import.checked', { count: check.valid })}
             </Notice>
           ) : null}
 

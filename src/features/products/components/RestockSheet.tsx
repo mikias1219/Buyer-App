@@ -1,12 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { PackagePlus } from 'lucide-react';
-import { Controller, useForm, useWatch } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { BottomSheet, Button, Input, Money, Notice, NumberInput, toast } from '../../../components/ui';
+import { BottomSheet, Button, Notice, NumberInput, toast } from '../../../components/ui';
 import type { Product } from '../../../lib/api/types';
 import { useErrorMessage } from '../../../lib/useErrorMessage';
 import { useRestock } from '../api';
-import { isValidQty, isWholeUnit, weightedAverageCost } from '../logic';
+import { isValidQty, isWholeUnit } from '../logic';
 import { restockSchema, type RestockForm } from '../schema';
 
 export function RestockSheet({ product, open, onClose }: { product: Product; open: boolean; onClose: () => void }) {
@@ -18,11 +18,8 @@ export function RestockSheet({ product, open, onClose }: { product: Product; ope
     resolver: zodResolver(restockSchema),
     defaultValues: { qty: null as unknown as number, unit_cost: owner ? (product.avg_cost ?? null) : null, supplier: '', note: '' },
   });
-  const { control, register, handleSubmit, formState, reset, setError } = form;
-  const [qty, unitCost] = useWatch({ control, name: ['qty', 'unit_cost'] });
+  const { control, handleSubmit, formState, reset, setError } = form;
   const err = (m?: string) => (m ? t(m) : undefined);
-  const newAvg =
-    owner && qty > 0 && unitCost !== null ? weightedAverageCost(product.stock_qty, product.avg_cost ?? 0, qty, unitCost) : null;
 
   const submit = handleSubmit((v) => {
     if (!isValidQty(product.unit, v.qty)) {
@@ -32,8 +29,8 @@ export function RestockSheet({ product, open, onClose }: { product: Product; ope
     restock.mutate(
       {
         items: [{ product_id: product.id, qty: v.qty, ...(owner && v.unit_cost !== null ? { unit_cost: v.unit_cost } : {}) }],
-        supplier: v.supplier,
-        note: v.note,
+        supplier: '',
+        note: '',
       },
       {
         onSuccess: () => {
@@ -93,13 +90,6 @@ export function RestockSheet({ product, open, onClose }: { product: Product; ope
         ) : (
           <Notice>{t('stockOps.staffCostNote')}</Notice>
         )}
-        {newAvg !== null ? (
-          <p className="text-sm text-hint">
-            {t('stockOps.newAverage')} <Money value={newAvg} className="font-semibold text-ink" />
-          </p>
-        ) : null}
-        <Input label={t('stockOps.supplier')} optionalLabel={t('common.optional')} maxLength={120} {...register('supplier')} />
-        <Input label={t('stockOps.note')} optionalLabel={t('common.optional')} maxLength={300} {...register('note')} />
       </div>
     </BottomSheet>
   );

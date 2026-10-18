@@ -6,7 +6,7 @@ describe('parseImport', () => {
     const r = parseImport(importTemplate());
     expect(r.errors).toEqual([]);
     expect(r.rows).toHaveLength(2);
-    expect(r.rows[1]).toEqual({ name: 'Rice', category: 'Groceries', unit: 'kg', sell_price: 120, cost_price: 95, opening_stock: 48.5, reorder_level: 20 });
+    expect(r.rows[1]).toEqual({ name: 'Rice', unit: 'kg', sell_price: 120, cost_price: 95, opening_stock: 48.5 });
   });
   it('accepts header aliases, Amharic headers, thousands separators and unit aliases', () => {
     const r = parseImport('ስም,ዋጋ,Quantity,Unit\n"Samsung A15","14,500",6,pcs\nCopper wire,40.5,180.5,m');

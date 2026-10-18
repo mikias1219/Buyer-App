@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Button,
+  Card,
   EmptyState,
   ErrorState,
   ListGroup,
@@ -74,67 +75,57 @@ function ProductView({ product: p }: { product: Product }) {
   return (
     <div className="space-y-5">
       <div className="flex items-start gap-3">
-        <ProductThumb path={p.image_path} size={64} />
+        {p.image_path ? <ProductThumb path={p.image_path} size={64} /> : null}
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-bold leading-tight">{p.name}</h1>
-          <p className="mt-0.5 text-sm text-hint">
-            {[p.category_name, p.sku, p.barcode].filter(Boolean).join(' · ') || t('productDetail.noCategory')}
-          </p>
+          {p.barcode ? <p className="tabular mt-0.5 text-sm text-hint">{p.barcode}</p> : null}
           <div className="mt-1.5">{p.status === 'archived' ? <span className="text-sm font-semibold text-hint">{t('products.archived')}</span> : <StockBadge status={p.stock_status} />}</div>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <StatCard label={t('productDetail.inStock')} value={<Quantity value={p.stock_qty} unit={p.unit} />} hint={t('productDetail.reorderAt', { qty: p.reorder_level })} />
-        <StatCard label={t('productDetail.price')} value={<Money value={p.sell_price} />} hint={isOwner && p.margin_pct !== null && p.margin_pct !== undefined ? t('products.marginShort', { value: p.margin_pct }) : undefined} />
-        {isOwner ? (
+        <StatCard label={t('productDetail.price')} value={<Money value={p.sell_price} />} />
+        {isOwner && p.avg_cost !== undefined ? (
           <>
-            <StatCard label={t('productDetail.avgCost')} value={<Money value={p.avg_cost} />} hint={t('productDetail.perUnit', { unit: t(`unitShort.${p.unit}`, { count: 1 }) })} />
-            <StatCard label={t('productDetail.stockValue')} value={<Money value={p.stock_value_cost} />} hint={t('productDetail.atCost')} />
+            <StatCard label={t('productDetail.avgCost')} value={<Money value={p.avg_cost} />} />
+            <StatCard label={t('productDetail.profitEach')} value={<Money value={Math.round((p.sell_price - p.avg_cost) * 100) / 100} tone="auto" />} />
           </>
         ) : null}
       </div>
-      {isOwner && p.stock_value_retail !== undefined ? (
-        <p className="-mt-3 px-0.5 text-xs text-hint">
-          {t('productDetail.retailValue')} <Money value={p.stock_value_retail} />
-        </p>
-      ) : null}
 
       {isOwner ? (
-        <Section title={t('productDetail.last30')}>
-          <div className="grid grid-cols-3 gap-2">
-            <StatCard label={t('productDetail.sold')} value={stats ? <Quantity value={stats.qty} unit={p.unit} /> : '0'} />
-            <StatCard label={t('kpi.revenue')} value={<Money value={stats?.revenue ?? 0} />} />
-            <StatCard label={t('kpi.grossProfit')} value={<Money value={stats?.profit ?? 0} tone="auto" />} />
-          </div>
-        </Section>
+        <Card className="flex items-center justify-between gap-2 text-sm">
+          <span className="text-hint">{t('productDetail.last30')}</span>
+          <span className="text-right font-semibold">
+            {t('dashboard.sold')} <Quantity value={stats?.qty ?? 0} unit={p.unit} /> · {t('productDetail.profit')} <Money value={stats?.profit ?? 0} tone="auto" />
+          </span>
+        </Card>
       ) : null}
 
       {p.notes ? <Notice>{p.notes}</Notice> : null}
 
-      <div className="grid grid-cols-2 gap-2">
-        {canRestock && p.status === 'active' ? (
-          <Button icon={PackagePlus} onClick={() => setSheet('restock')}>
-            {t('stockOps.restock')}
+      {canRestock && p.status === 'active' ? (
+        <Button block size="lg" icon={PackagePlus} onClick={() => setSheet('restock')}>
+          {t('stockOps.restock')}
+        </Button>
+      ) : null}
+      {isOwner ? (
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="secondary" icon={Pencil} onClick={() => navigate(`/products/${p.id}/edit`)}>
+            {t('common.edit')}
           </Button>
-        ) : null}
-        {isOwner ? (
-          <>
-            <Button variant="secondary" icon={ClipboardCheck} onClick={() => setSheet('adjust')}>
-              {t('stockOps.adjust')}
-            </Button>
-            <Button variant="secondary" icon={Pencil} onClick={() => navigate(`/products/${p.id}/edit`)}>
-              {t('common.edit')}
-            </Button>
-            <Button variant="secondary" icon={p.status === 'active' ? Archive : ArchiveRestore} loading={setStatus.isPending} onClick={() => void toggleArchive()}>
-              {p.status === 'active' ? t('productDetail.archive') : t('productDetail.restore')}
-            </Button>
-            <Button variant="ghost" icon={Trash2} className="col-span-2 text-danger" loading={del.isPending} onClick={() => void remove()}>
-              {t('productDetail.delete')}
-            </Button>
-          </>
-        ) : null}
-      </div>
+          <Button variant="secondary" icon={ClipboardCheck} onClick={() => setSheet('adjust')}>
+            {t('stockOps.adjust')}
+          </Button>
+          <Button variant="ghost" icon={p.status === 'active' ? Archive : ArchiveRestore} loading={setStatus.isPending} onClick={() => void toggleArchive()}>
+            {p.status === 'active' ? t('productDetail.archive') : t('productDetail.restore')}
+          </Button>
+          <Button variant="ghost" icon={Trash2} className="text-danger" loading={del.isPending} onClick={() => void remove()}>
+            {t('productDetail.delete')}
+          </Button>
+        </div>
+      ) : null}
 
       {isOwner ? <MovementHistory product={p} timeZone={settings?.timezone} /> : null}
 

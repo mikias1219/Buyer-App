@@ -1,29 +1,12 @@
-import {
-  AlertTriangle,
-  Banknote,
-  Boxes,
-  HandCoins,
-  PackageSearch,
-  Receipt,
-  ShoppingBag,
-  SlidersHorizontal,
-  TrendingUp,
-  Undo2,
-  Wallet,
-} from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { AlertTriangle, Boxes, HandCoins, ShoppingBag } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  BarList,
   Button,
   Card,
-  Chip,
   EmptyState,
   ErrorState,
-  FilterGroup,
-  FilterSheet,
-  IconButton,
   ListGroup,
   ListRow,
   Money,
@@ -35,56 +18,27 @@ import {
   Skeleton,
   StatCard,
   StatGridSkeleton,
-  Tabs,
-  TrendChart,
 } from '../../components/ui';
-import { PAYMENT_METHODS, type Kpis, type PaymentMethod, type ReportFilters } from '../../lib/api/types';
-import { formatDate, formatEtb, formatNumber, formatRelative, percentChange } from '../../lib/format';
-import { periodFromParam, periodToParam, resolvePeriod } from '../../lib/period';
+import type { DashboardSummary } from '../../lib/api/types';
+import { formatNumber } from '../../lib/format';
+import { periodFromParam, periodToParam, resolvePeriod, SIMPLE_PERIODS, type Period } from '../../lib/period';
 import { useShopSettings } from '../auth/hooks';
-import { useCategories, useLowStock } from '../products/api';
-import {
-  useCashierBreakdown,
-  useCategoryBreakdown,
-  useDashboardSummary,
-  usePaymentBreakdown,
-  useProductPerformance,
-  useSalesTrend,
-  useSlowMovers,
-} from '../reports/api';
+import { useLowStock } from '../products/api';
+import { useDashboardSummary, useProductPerformance } from '../reports/api';
 
-type Rank = 'qty' | 'revenue' | 'profit';
-
+/** Owner home: plain answers to "how much did I sell, what did I earn, what is running out". */
 export default function DashboardPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const settings = useShopSettings();
   const tz = settings?.timezone ?? 'Africa/Addis_Ababa';
   const [params, setParams] = useSearchParams();
   const period = periodFromParam(params.get('period'));
   const range = resolvePeriod(period, tz);
-  const [scope, setScope] = useState<{ categories: string[]; methods: PaymentMethod[] }>({ categories: [], methods: [] });
-  const [draft, setDraft] = useState(scope);
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [metric, setMetric] = useState<'revenue' | 'profit'>('revenue');
-  const [rank, setRank] = useState<Rank>('revenue');
-  const categories = useCategories();
+  const summary = useDashboardSummary(range);
+  const top = useProductPerformance(range, 'qty', 5);
+  const low = useLowStock(5);
 
-  const filters: ReportFilters = {
-    ...range,
-    ...(scope.categories.length ? { category_ids: scope.categories } : {}),
-    ...(scope.methods.length ? { payment_methods: scope.methods } : {}),
-  };
-  const summary = useDashboardSummary(filters);
-  const trend = useSalesTrend(filters);
-  const top = useProductPerformance(filters, rank, 8);
-  const byCategory = useCategoryBreakdown(filters);
-  const byPayment = usePaymentBreakdown(filters);
-  const byCashier = useCashierBreakdown(filters);
-  const slow = useSlowMovers(6);
-  const low = useLowStock(6);
-  const activeFilters = scope.categories.length + scope.methods.length;
-
-  const setPeriod = (p: Parameters<typeof periodToParam>[0]) =>
+  const setPeriod = (p: Period) =>
     setParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -96,139 +50,45 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title={settings?.shop_name || t('nav.dashboard')}
-        subtitle={t('nav.dashboard')}
-        action={
-          <IconButton
-            icon={SlidersHorizontal}
-            label={t('filters.title')}
-            variant={activeFilters ? 'active' : 'surface'}
-            onClick={() => {
-              setDraft(scope);
-              setFiltersOpen(true);
-            }}
-          />
-        }
-      />
-      <PeriodPicker value={period} onChange={setPeriod} timeZone={tz} />
-      {activeFilters ? (
-        <div className="flex flex-wrap gap-1.5">
-          {scope.categories.map((id) => (
-            <Chip key={id} onRemove={() => setScope({ ...scope, categories: scope.categories.filter((c) => c !== id) })} removeLabel={t('filters.remove')}>
-              {categories.data?.find((c) => c.id === id)?.name ?? '…'}
-            </Chip>
-          ))}
-          {scope.methods.map((m) => (
-            <Chip key={m} onRemove={() => setScope({ ...scope, methods: scope.methods.filter((x) => x !== m) })} removeLabel={t('filters.remove')}>
-              {t(`paymentMethod.${m}`)}
-            </Chip>
-          ))}
-        </div>
-      ) : null}
+      <PageHeader title={settings?.shop_name || t('nav.dashboard')} subtitle={t('dashboard.subtitle')} />
+      <PeriodPicker value={period} onChange={setPeriod} timeZone={tz} presets={SIMPLE_PERIODS} custom={false} />
 
       {summary.isPending ? (
-        <StatGridSkeleton count={8} />
+        <StatGridSkeleton count={4} />
       ) : summary.isError ? (
         <ErrorState error={summary.error} onRetry={() => void summary.refetch()} />
       ) : (
-        <>
-          {summary.data.stock.product_count === 0 ? <FirstRun /> : null}
-          <KpiGrid current={summary.data.current} previous={summary.data.previous} />
-          {summary.data.scoped ? <Notice>{t('dashboard.scopedNote')}</Notice> : null}
-
-          <Section title={t('dashboard.stockTitle')}>
-            <div className="grid grid-cols-2 gap-3">
-              <StatCard icon={Boxes} label={t('dashboard.valueCost')} value={<Money value={summary.data.stock.value_cost} />} hint={t('dashboard.units', { qty: formatNumber(summary.data.stock.units) })} />
-              <StatCard icon={Banknote} label={t('dashboard.valueRetail')} value={<Money value={summary.data.stock.value_retail} />} hint={t('dashboard.potential', { value: formatEtb(summary.data.stock.potential_profit) })} />
-              <LinkTile to="/products?stock=low">
-                <StatCard icon={AlertTriangle} label={t('dashboard.lowStock')} value={formatNumber(summary.data.stock.low_count)} hint={t('dashboard.outCount', { count: summary.data.stock.out_count })} />
-              </LinkTile>
-              <LinkTile to="/more/customers">
-                <StatCard icon={HandCoins} label={t('dashboard.receivables')} value={<Money value={summary.data.receivables} />} hint={t('dashboard.receivablesHint')} />
-              </LinkTile>
-            </div>
-          </Section>
-        </>
+        <Overview data={summary.data} />
       )}
 
-      <Card>
-        <div className="mb-3">
-          <Tabs
-            label={t('dashboard.trendMetric')}
-            value={metric}
-            onChange={setMetric}
-            items={[
-              { value: 'revenue', label: t('kpi.revenue') },
-              { value: 'profit', label: t('kpi.grossProfit') },
-            ]}
-          />
-        </div>
-        {trend.isPending ? (
-          <Skeleton className="h-40" />
-        ) : trend.isError ? (
-          <ErrorState error={trend.error} onRetry={() => void trend.refetch()} />
-        ) : (
-          <TrendChart
-            title={t(`dashboard.trendTitle.${trend.data.bucket}`, { metric: t(metric === 'revenue' ? 'kpi.revenue' : 'kpi.grossProfit') })}
-            formatValue={(n) => formatEtb(n)}
-            data={trend.data.points.map((p) => ({
-              key: p.bucket,
-              label: formatDate(p.bucket, i18n.language).replace(/ \d{4}$/, ''),
-              value: metric === 'revenue' ? p.revenue : p.profit,
-              tooltip: `${formatDate(p.bucket, i18n.language)} · ${formatEtb(metric === 'revenue' ? p.revenue : p.profit)} · ${t('sales.count', { count: p.sales })}`,
-            }))}
-          />
-        )}
-      </Card>
-
-      <Section title={t('dashboard.topProducts')}>
-        <Tabs
-          label={t('dashboard.rankBy')}
-          value={rank}
-          onChange={setRank}
-          items={[
-            { value: 'revenue', label: t('kpi.revenue') },
-            { value: 'qty', label: t('dashboard.quantity') },
-            { value: 'profit', label: t('kpi.grossProfit') },
-          ]}
-        />
-        <Card>
-          {top.isPending ? (
-            <Skeleton className="h-32" />
-          ) : top.isError ? (
-            <ErrorState error={top.error} onRetry={() => void top.refetch()} />
-          ) : top.data.length === 0 ? (
+      <Section title={t('dashboard.bestSellers')}>
+        {top.isPending ? (
+          <Skeleton className="h-32" />
+        ) : top.isError ? (
+          <ErrorState error={top.error} onRetry={() => void top.refetch()} />
+        ) : top.data.length === 0 ? (
+          <Card>
             <EmptyState icon={ShoppingBag} title={t('dashboard.noSales')} className="py-4" />
-          ) : (
-            <BarList
-              data={top.data.map((p) => ({
-                key: p.product_id,
-                label: p.name,
-                value: rank === 'qty' ? p.qty : rank === 'revenue' ? p.revenue : p.profit,
-                display: rank === 'qty' ? `${formatNumber(p.qty)} ${t(`unitShort.${p.unit}`, { count: p.qty })}` : formatEtb(rank === 'revenue' ? p.revenue : p.profit),
-                sub: t('dashboard.topSub', { revenue: formatEtb(p.revenue), profit: formatEtb(p.profit), margin: p.margin_pct ?? 0 }),
-              }))}
-            />
-          )}
-        </Card>
+          </Card>
+        ) : (
+          <ListGroup>
+            {top.data.map((p, i) => (
+              <ListRow
+                key={p.product_id}
+                to={`/products/${p.product_id}`}
+                leading={<span className="tabular flex size-8 items-center justify-center rounded-full bg-brand-soft text-sm font-bold text-brand">{i + 1}</span>}
+                title={p.name}
+                subtitle={
+                  <>
+                    {t('dashboard.sold')} <Quantity value={p.qty} unit={p.unit} />
+                  </>
+                }
+                trailing={<Money value={p.revenue} />}
+              />
+            ))}
+          </ListGroup>
+        )}
       </Section>
-
-      <Breakdown
-        title={t('dashboard.byCategory')}
-        query={byCategory}
-        rows={(d) => d.map((c) => ({ key: c.category_id ?? 'none', label: c.name ?? t('dashboard.uncategorized'), value: c.revenue, display: formatEtb(c.revenue), sub: t('dashboard.profitSub', { value: formatEtb(c.profit) }) }))}
-      />
-      <Breakdown
-        title={t('dashboard.byPayment')}
-        query={byPayment}
-        rows={(d) => d.map((p) => ({ key: p.payment_method, label: t(`paymentMethod.${p.payment_method}`), value: p.revenue, display: formatEtb(p.revenue), sub: t('sales.count', { count: p.sales }) }))}
-      />
-      <Breakdown
-        title={t('dashboard.byCashier')}
-        query={byCashier}
-        rows={(d) => d.map((c) => ({ key: c.cashier_id, label: c.name, value: c.revenue, display: formatEtb(c.revenue), sub: t('sales.count', { count: c.sales }) }))}
-      />
 
       <Section title={t('dashboard.lowStockList')} action={<Link to="/products?stock=low" className="text-sm font-semibold text-brand">{t('dashboard.seeAll')}</Link>}>
         {low.isPending ? (
@@ -240,112 +100,76 @@ export default function DashboardPage() {
         ) : (
           <ListGroup>
             {low.data.map((p) => (
-              <ListRow key={p.id} to={`/products/${p.id}`} title={p.name} subtitle={t('dashboard.reorderAt', { qty: formatNumber(p.reorder_level) })} trailing={<Quantity value={p.stock_qty} unit={p.unit} />} />
-            ))}
-          </ListGroup>
-        )}
-      </Section>
-
-      <Section title={t('dashboard.slowMovers', { days: settings?.slow_mover_days ?? 30 })}>
-        {slow.isPending ? (
-          <Skeleton className="h-24" />
-        ) : slow.isError ? (
-          <ErrorState error={slow.error} onRetry={() => void slow.refetch()} />
-        ) : slow.data.length === 0 ? (
-          <Card className="text-sm text-hint">{t('dashboard.noSlowMovers')}</Card>
-        ) : (
-          <ListGroup>
-            {slow.data.map((p) => (
               <ListRow
-                key={p.product_id}
-                to={`/products/${p.product_id}`}
-                leading={<PackageSearch aria-hidden className="size-5 text-hint" />}
+                key={p.id}
+                to={`/products/${p.id}`}
                 title={p.name}
-                subtitle={p.last_sold_at ? t('dashboard.lastSold', { when: formatRelative(p.last_sold_at, i18n.language) }) : t('dashboard.neverSold')}
-                trailing={<Money value={p.stock_value_cost} />}
-                meta={<Quantity value={p.stock_qty} unit={p.unit} className="text-xs text-hint" />}
+                subtitle={p.stock_qty <= 0 ? t('stock.out') : t('dashboard.onlyLeft')}
+                trailing={<Quantity value={p.stock_qty} unit={p.unit} className={p.stock_qty <= 0 ? 'font-semibold text-danger' : 'font-semibold text-warning'} />}
               />
             ))}
           </ListGroup>
         )}
       </Section>
-
-      <FilterSheet open={filtersOpen} onClose={() => setFiltersOpen(false)} onApply={() => setScope(draft)} onReset={() => setDraft({ categories: [], methods: [] })}>
-        {categories.data && categories.data.length > 0 ? (
-          <FilterGroup label={t('products.category')}>
-            {categories.data.map((c) => (
-              <Chip
-                key={c.id}
-                selected={draft.categories.includes(c.id)}
-                onClick={() => setDraft({ ...draft, categories: draft.categories.includes(c.id) ? draft.categories.filter((x) => x !== c.id) : [...draft.categories, c.id] })}
-              >
-                {c.name}
-              </Chip>
-            ))}
-          </FilterGroup>
-        ) : null}
-        <FilterGroup label={t('sell.payment')}>
-          {PAYMENT_METHODS.map((m) => (
-            <Chip key={m} selected={draft.methods.includes(m)} onClick={() => setDraft({ ...draft, methods: draft.methods.includes(m) ? draft.methods.filter((x) => x !== m) : [...draft.methods, m] })}>
-              {t(`paymentMethod.${m}`)}
-            </Chip>
-          ))}
-        </FilterGroup>
-      </FilterSheet>
     </div>
   );
 }
 
-function KpiGrid({ current: c, previous: p }: { current: Kpis; previous: Kpis }) {
+function Overview({ data }: { data: DashboardSummary }) {
   const { t } = useTranslation();
-  const d = (a: number, b: number) => percentChange(a, b);
+  const c = data.current;
   return (
-    <div className="grid grid-cols-2 gap-3">
-      <StatCard icon={Banknote} label={t('kpi.revenue')} value={<Money value={c.revenue} />} delta={d(c.revenue, p.revenue)} />
-      <StatCard icon={TrendingUp} label={t('kpi.grossProfit')} value={<Money value={c.gross_profit} tone="auto" />} delta={d(c.gross_profit, p.gross_profit)} />
-      <StatCard icon={Wallet} label={t('kpi.expenses')} value={<Money value={c.expenses} />} delta={d(c.expenses, p.expenses)} invert />
-      <StatCard icon={HandCoins} label={t('kpi.netProfit')} value={<Money value={c.net_profit} tone="auto" />} delta={d(c.net_profit, p.net_profit)} />
-      <StatCard icon={ShoppingBag} label={t('kpi.itemsSold')} value={formatNumber(c.items_sold)} delta={d(c.items_sold, p.items_sold)} />
-      <StatCard icon={Receipt} label={t('kpi.sales')} value={formatNumber(c.sales_count)} hint={c.avg_sale !== null ? t('kpi.avgSale', { value: formatEtb(c.avg_sale) }) : undefined} />
-      <StatCard label={t('kpi.margin')} value={c.margin_pct !== null ? `${c.margin_pct}%` : '—'} hint={t('kpi.cogs', { value: formatEtb(c.cogs) })} />
-      <StatCard icon={Undo2} label={t('kpi.returnsLoss')} value={<Money value={c.returns_amount + c.stock_loss} />} hint={t('kpi.returnsLossHint', { returns: formatEtb(c.returns_amount), loss: formatEtb(c.stock_loss) })} />
-    </div>
-  );
-}
+    <>
+      {data.stock.product_count === 0 ? <FirstRun /> : null}
 
-function LinkTile({ to, children }: { to: string; children: ReactNode }) {
-  return (
-    <Link to={to} className="press block rounded-card">
-      {children}
-    </Link>
-  );
-}
-
-function Breakdown<T>({
-  title,
-  query,
-  rows,
-}: {
-  title: string;
-  query: { isPending: boolean; isError: boolean; error: unknown; data: T | undefined; refetch: () => unknown };
-  rows: (d: T) => Array<{ key: string; label: string; value: number; display: string; sub?: string }>;
-}) {
-  const { t } = useTranslation();
-  const data = query.data ? rows(query.data) : [];
-  return (
-    <Section title={title}>
-      <Card>
-        {query.isPending ? (
-          <Skeleton className="h-24" />
-        ) : query.isError ? (
-          <ErrorState error={query.error} onRetry={() => void query.refetch()} />
-        ) : data.length === 0 ? (
-          <p className="text-sm text-hint">{t('dashboard.noSales')}</p>
-        ) : (
-          <BarList data={data} />
-        )}
+      <Card className="space-y-1">
+        <p className="text-sm text-hint">{t('dashboard.salesMoney')}</p>
+        <Money value={c.revenue} className="block text-3xl font-bold" />
+        <p className="text-sm text-hint">
+          {t('dashboard.salesCount', { count: c.sales_count })} · {t('dashboard.itemsCount', { qty: formatNumber(c.items_sold) })}
+        </p>
       </Card>
-    </Section>
+
+      <Card className="space-y-3">
+        <div>
+          <p className="text-sm text-hint">{t('dashboard.yourProfit')}</p>
+          <Money value={c.net_profit} tone="auto" className="block text-3xl font-bold" />
+        </div>
+        <dl className="space-y-1.5 border-t border-line pt-3 text-sm">
+          <Line label={t('dashboard.profitFromGoods')} value={<Money value={c.gross_profit} tone="auto" />} />
+          <Line label={t('dashboard.minusExpenses')} value={<Money value={c.expenses} />} to="/more/expenses" />
+          {c.stock_loss > 0 ? <Line label={t('dashboard.minusLoss')} value={<Money value={c.stock_loss} />} /> : null}
+        </dl>
+      </Card>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Link to="/products?stock=low" className="press block rounded-card">
+          <StatCard
+            icon={AlertTriangle}
+            label={t('dashboard.lowStock')}
+            value={formatNumber(data.stock.low_count)}
+            hint={t('dashboard.outCount', { count: data.stock.out_count })}
+          />
+        </Link>
+        <Link to="/products" className="press block rounded-card">
+          <StatCard icon={Boxes} label={t('dashboard.stockWorth')} value={<Money value={data.stock.value_cost} />} hint={t('dashboard.stockWorthHint')} />
+        </Link>
+        {data.receivables > 0 ? (
+          <Link to="/more/customers" className="press col-span-2 block rounded-card">
+            <StatCard icon={HandCoins} label={t('dashboard.receivables')} value={<Money value={data.receivables} />} hint={t('dashboard.receivablesHint')} />
+          </Link>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
+function Line({ label, value, to }: { label: string; value: ReactNode; to?: string }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <dt className="text-hint">{to ? <Link to={to} className="underline decoration-line underline-offset-2">{label}</Link> : label}</dt>
+      <dd className="font-semibold">{value}</dd>
+    </div>
   );
 }
 

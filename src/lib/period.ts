@@ -5,6 +5,8 @@
 
 export const PERIOD_PRESETS = ['today', 'yesterday', 'this_week', 'last_7', 'this_month', 'last_month', 'last_30', 'this_year'] as const;
 export type PeriodPreset = (typeof PERIOD_PRESETS)[number];
+/** The short list shown on everyday screens (dashboard, sales). */
+export const SIMPLE_PERIODS = ['today', 'yesterday', 'this_week', 'this_month'] as const satisfies readonly PeriodPreset[];
 
 export interface DateRange {
   from: string;

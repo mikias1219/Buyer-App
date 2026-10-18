@@ -3,6 +3,8 @@ import { parseCsv, toCsv } from '../../lib/csv';
 
 export const IMPORT_COLUMNS = ['name', 'category', 'sku', 'barcode', 'unit', 'sell_price', 'cost_price', 'opening_stock', 'reorder_level'] as const;
 type Column = (typeof IMPORT_COLUMNS)[number];
+/** The short template we hand out; the other columns are still read when present. */
+export const TEMPLATE_COLUMNS = ['name', 'sell_price', 'cost_price', 'opening_stock', 'unit'] as const satisfies readonly Column[];
 
 /** Header aliases people commonly use (English, Amharic, spreadsheet defaults). */
 const ALIASES: Record<string, Column> = {
@@ -87,9 +89,9 @@ export function parseImport(text: string): ParsedImport {
 export function importTemplate(): string {
   return toCsv(
     [
-      { name: 'Charger 20W', category: 'Accessories', sku: 'CHG-20', barcode: '', unit: 'piece', sell_price: 450, cost_price: 280, opening_stock: 25, reorder_level: 8 },
-      { name: 'Rice', category: 'Groceries', sku: '', barcode: '', unit: 'kg', sell_price: 120, cost_price: 95, opening_stock: 48.5, reorder_level: 20 },
+      { name: 'Charger 20W', sell_price: 450, cost_price: 280, opening_stock: 25, unit: 'piece' },
+      { name: 'Rice', sell_price: 120, cost_price: 95, opening_stock: 48.5, unit: 'kg' },
     ],
-    IMPORT_COLUMNS.map((c) => ({ header: c, value: (r: Record<Column, string | number>) => r[c] })),
+    TEMPLATE_COLUMNS.map((c) => ({ header: c, value: (r: Record<(typeof TEMPLATE_COLUMNS)[number], string | number>) => r[c] })),
   );
 }

@@ -39,7 +39,7 @@ export function CartSheet({ open, onClose, cart, dispatch }: { open: boolean; on
   const record = useRecordSale();
   const errorMessage = useErrorMessage();
   const [picking, setPicking] = useState(false);
-  const [discountFor, setDiscountFor] = useState<string | null>(null);
+  const [showExtras, setShowExtras] = useState(false);
   const allowNegative = Boolean(settings?.allow_negative_stock);
   const totals = cartTotals(cart.lines, cart.discount);
   const problems = cartProblems(cart.lines, cart.discount, allowNegative);
@@ -137,34 +137,8 @@ export function CartSheet({ open, onClose, cart, dispatch }: { open: boolean; on
                     )}
                     <div className="text-right">
                       <Money value={lineTotal(l)} className="font-bold" />
-                      {l.discount > 0 ? (
-                        <p className="text-xs text-success">
-                          −<Money value={l.discount} />
-                        </p>
-                      ) : null}
                     </div>
                   </div>
-                  {discountFor === l.product.id ? (
-                    <div className="mt-2 flex items-end gap-2">
-                      <div className="flex-1">
-                        <NumberInput
-                          size="md"
-                          label={t('sell.lineDiscount')}
-                          prefix="ETB"
-                          decimals={2}
-                          autoFocus
-                          value={l.discount || null}
-                          onChange={(d) => dispatch({ type: 'setLineDiscount', productId: l.product.id, discount: d ?? 0 })}
-                        />
-                      </div>
-                      <IconButton icon={X} label={t('common.close')} onClick={() => setDiscountFor(null)} />
-                    </div>
-                  ) : (
-                    <button type="button" className="press mt-1 inline-flex items-center gap-1 text-xs font-semibold text-brand" onClick={() => setDiscountFor(l.product.id)}>
-                      <BadgePercent aria-hidden className="size-3.5" />
-                      {t('sell.addDiscount')}
-                    </button>
-                  )}
                   {problem ? (
                     <p role="alert" className="mt-1 flex items-center gap-1 text-xs font-semibold text-danger">
                       <AlertTriangle aria-hidden className="size-3.5" />
@@ -187,47 +161,54 @@ export function CartSheet({ open, onClose, cart, dispatch }: { open: boolean; on
             </div>
           </fieldset>
 
-          <div className="flex items-center gap-2">
-            <Button variant={cart.customer ? 'soft' : 'secondary'} icon={UserRound} onClick={() => setPicking(true)} className="flex-1 justify-start">
-              {cart.customer ? cart.customer.name : cart.paymentMethod === 'credit' ? t('sell.pickCustomer') : t('sell.addCustomer')}
-            </Button>
-            {cart.customer ? <IconButton icon={X} label={t('sell.removeCustomer')} onClick={() => dispatch({ type: 'setCustomer', customer: null })} /> : null}
-          </div>
-          {cart.customer && cart.customer.balance > 0 ? (
-            <p className="text-xs text-warning">
-              {t('sell.customerOwes')} <Money value={cart.customer.balance} />
-            </p>
+          {cart.paymentMethod === 'credit' || cart.customer ? (
+            <>
+              <div className="flex items-center gap-2">
+                <Button variant={cart.customer ? 'soft' : 'secondary'} icon={UserRound} onClick={() => setPicking(true)} className="flex-1 justify-start">
+                  {cart.customer ? cart.customer.name : t('sell.pickCustomer')}
+                </Button>
+                {cart.customer ? <IconButton icon={X} label={t('sell.removeCustomer')} onClick={() => dispatch({ type: 'setCustomer', customer: null })} /> : null}
+              </div>
+              {cart.customer && cart.customer.balance > 0 ? (
+                <p className="text-xs text-warning">
+                  {t('sell.customerOwes')} <Money value={cart.customer.balance} />
+                </p>
+              ) : null}
+            </>
           ) : null}
 
-          <NumberInput
-            size="md"
-            label={t('sell.saleDiscount')}
-            prefix="ETB"
-            decimals={2}
-            value={cart.discount || null}
-            onChange={(d) => dispatch({ type: 'setDiscount', discount: d ?? 0 })}
-            error={problems.saleDiscountInvalid ? t('sell.problem.discount') : undefined}
-          />
-          <Input label={t('sell.note')} optionalLabel={t('common.optional')} maxLength={300} value={cart.note} onChange={(e) => dispatch({ type: 'setNote', note: e.target.value })} />
+          {showExtras || cart.discount > 0 || cart.note ? (
+            <>
+              <NumberInput
+                size="md"
+                label={t('sell.saleDiscount')}
+                prefix="ETB"
+                decimals={2}
+                value={cart.discount || null}
+                onChange={(d) => dispatch({ type: 'setDiscount', discount: d ?? 0 })}
+                error={problems.saleDiscountInvalid ? t('sell.problem.discount') : undefined}
+              />
+              <Input label={t('sell.note')} optionalLabel={t('common.optional')} maxLength={300} value={cart.note} onChange={(e) => dispatch({ type: 'setNote', note: e.target.value })} />
+            </>
+          ) : (
+            <button type="button" className="press inline-flex items-center gap-1 text-sm font-semibold text-brand" onClick={() => setShowExtras(true)}>
+              <BadgePercent aria-hidden className="size-4" />
+              {t('sell.addDiscount')}
+            </button>
+          )}
 
-          <dl className="space-y-1 rounded-card bg-surface-2 p-3 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-hint">{t('sell.subtotal')}</dt>
-              <dd><Money value={totals.subtotal} /></dd>
-            </div>
-            {totals.discount > 0 ? (
+          {totals.discount > 0 ? (
+            <dl className="space-y-1 rounded-card bg-surface-2 p-3 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-hint">{t('sell.subtotal')}</dt>
+                <dd><Money value={totals.subtotal} /></dd>
+              </div>
               <div className="flex justify-between">
                 <dt className="text-hint">{t('sell.discount')}</dt>
                 <dd className="text-success">−<Money value={totals.discount} /></dd>
               </div>
-            ) : null}
-            {canSeeCost && totals.profit !== null ? (
-              <div className="flex justify-between">
-                <dt className="text-hint">{t('sell.profit')}</dt>
-                <dd><Money value={totals.profit} tone="auto" /></dd>
-              </div>
-            ) : null}
-          </dl>
+            </dl>
+          ) : null}
           {belowCost ? (
             <Notice tone="warning" icon={AlertTriangle}>
               {isOwner ? t('sell.belowCostOwner') : t('sell.belowCostStaff')}

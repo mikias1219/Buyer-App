@@ -1,4 +1,4 @@
-import { FileSpreadsheet, FolderTree, HandCoins, Languages, Settings, Upload, UsersRound, Wallet } from 'lucide-react';
+import { FileSpreadsheet, HandCoins, Languages, Settings, Upload, UsersRound, Wallet } from 'lucide-react';
 import { lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Avatar, Badge, Card, Chip, ListGroup, ListItem, PageHeader, Section } from '../../components/ui';
@@ -41,7 +41,6 @@ export default function MorePage() {
           </Section>
           <Section title={t('more.manage')}>
             <ListGroup>
-              <ListItem icon={FolderTree} label={t('categories.title')} to="/more/categories" />
               <ListItem icon={Upload} label={t('import.title')} to="/more/import" />
               <ListItem icon={UsersRound} label={t('team.title')} to="/more/team" />
               <ListItem icon={Settings} label={t('settings.title')} to="/more/settings" />

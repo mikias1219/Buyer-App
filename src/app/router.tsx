@@ -16,7 +16,6 @@ const ExpensesPage = lazy(() => import('../features/expenses/ExpensesPage'));
 const ReportsPage = lazy(() => import('../features/reports/ReportsPage'));
 const CustomersPage = lazy(() => import('../features/customers/CustomersPage'));
 const CustomerDetailPage = lazy(() => import('../features/customers/CustomerDetailPage'));
-const CategoriesPage = lazy(() => import('../features/categories/CategoriesPage'));
 const ImportPage = lazy(() => import('../features/import/ImportPage'));
 const TeamPage = lazy(() => import('../features/team/TeamPage'));
 const SettingsPage = lazy(() => import('../features/settings/SettingsPage'));
@@ -48,7 +47,6 @@ export const router = createHashRouter([
       { path: 'more/reports', element: owner(<ReportsPage />) },
       { path: 'more/customers', element: owner(<CustomersPage />) },
       { path: 'more/customers/:id', element: owner(<CustomerDetailPage />) },
-      { path: 'more/categories', element: owner(<CategoriesPage />) },
       { path: 'more/import', element: owner(<ImportPage />) },
       { path: 'more/team', element: owner(<TeamPage />) },
       { path: 'more/settings', element: owner(<SettingsPage />) },

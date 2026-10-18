@@ -1,18 +1,12 @@
-import { Receipt, Search, SlidersHorizontal } from 'lucide-react';
-import { useState } from 'react';
+import { Receipt } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import {
   Badge,
   Button,
   Card,
-  Chip,
   EmptyState,
   ErrorState,
-  FilterGroup,
-  FilterSheet,
-  IconButton,
-  Input,
   ListGroup,
   ListRow,
   ListSkeleton,
@@ -21,10 +15,9 @@ import {
   PeriodPicker,
   Section,
 } from '../../components/ui';
-import { PAYMENT_METHODS, type PaymentMethod, type SaleStatus, type SaleSummary, type SalesFilters } from '../../lib/api/types';
+import type { SaleSummary, SalesFilters } from '../../lib/api/types';
 import { formatDate, formatTime } from '../../lib/format';
-import { localToday, periodFromParam, periodToParam, resolvePeriod } from '../../lib/period';
-import { useDebounced } from '../../lib/useDebounced';
+import { localToday, periodFromParam, periodToParam, resolvePeriod, SIMPLE_PERIODS } from '../../lib/period';
 import { usePermissions, useShopSettings } from '../auth/hooks';
 import { useSales } from './api';
 
@@ -36,21 +29,14 @@ export default function SalesPage() {
   const [params, setParams] = useSearchParams();
   const period = periodFromParam(params.get('period'));
   const range = resolvePeriod(period, tz);
-  const [q, setQ] = useState('');
-  const receipt = useDebounced(q.replace(/\D/g, ''));
-  const [methods, setMethods] = useState<PaymentMethod[]>([]);
-  const [status, setStatus] = useState<SaleStatus | 'all'>('all');
-  const [draft, setDraft] = useState<{ methods: PaymentMethod[]; status: SaleStatus | 'all' }>({ methods: [], status: 'all' });
-  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Staff are pinned server-side to their own sales today; the filters only matter for owners.
   const filters: SalesFilters = isOwner
-    ? { ...range, ...(methods.length ? { payment_methods: methods } : {}), status, ...(receipt ? { q: receipt } : {}) }
+    ? range
     : {};
   const sales = useSales(filters);
   const items = sales.data?.pages.flatMap((p) => p.items) ?? [];
   const first = sales.data?.pages[0];
-  const activeFilters = methods.length + (status !== 'all' ? 1 : 0);
 
   const groups = new Map<string, SaleSummary[]>();
   for (const s of items) {
@@ -63,16 +49,12 @@ export default function SalesPage() {
       <PageHeader
         title={isOwner ? t('nav.sales') : t('nav.mySales')}
         subtitle={isOwner ? undefined : t('sales.todayOnly')}
-        action={isOwner ? <IconButton icon={SlidersHorizontal} label={t('filters.title')} variant={activeFilters ? 'active' : 'surface'} onClick={() => {
-          setDraft({ methods, status });
-          setFiltersOpen(true);
-        }} /> : null}
       />
       {isOwner ? (
-        <>
-          <PeriodPicker
+        <PeriodPicker
             value={period}
             timeZone={tz}
+            presets={SIMPLE_PERIODS}
             onChange={(p) =>
               setParams(
                 (prev) => {
@@ -84,8 +66,6 @@ export default function SalesPage() {
               )
             }
           />
-          <Input type="search" inputMode="numeric" aria-label={t('sales.searchReceipt')} placeholder={t('sales.searchReceipt')} leading={<Search aria-hidden className="size-5" />} value={q} onChange={(e) => setQ(e.target.value)} />
-        </>
       ) : null}
 
       {first ? (
@@ -138,34 +118,6 @@ export default function SalesPage() {
         </>
       )}
 
-      <FilterSheet
-        open={filtersOpen}
-        onClose={() => setFiltersOpen(false)}
-        onApply={() => {
-          setMethods(draft.methods);
-          setStatus(draft.status);
-        }}
-        onReset={() => setDraft({ methods: [], status: 'all' })}
-      >
-        <FilterGroup label={t('sell.payment')}>
-          {PAYMENT_METHODS.map((m) => (
-            <Chip
-              key={m}
-              selected={draft.methods.includes(m)}
-              onClick={() => setDraft({ ...draft, methods: draft.methods.includes(m) ? draft.methods.filter((x) => x !== m) : [...draft.methods, m] })}
-            >
-              {t(`paymentMethod.${m}`)}
-            </Chip>
-          ))}
-        </FilterGroup>
-        <FilterGroup label={t('sales.status')}>
-          {(['all', 'completed', 'voided'] as const).map((s) => (
-            <Chip key={s} selected={draft.status === s} onClick={() => setDraft({ ...draft, status: s })}>
-              {t(`sales.statusOption.${s}`)}
-            </Chip>
-          ))}
-        </FilterGroup>
-      </FilterSheet>
     </div>
   );
 }

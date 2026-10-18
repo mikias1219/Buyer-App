@@ -14,11 +14,14 @@ export function PeriodPicker({
   onChange,
   timeZone,
   presets = PERIOD_PRESETS,
+  custom = true,
 }: {
   value: Period;
   onChange: (p: Period) => void;
   timeZone: string;
   presets?: readonly Period['preset'][];
+  /** Show the "Custom" chip and the resolved dates line. */
+  custom?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -41,6 +44,7 @@ export function PeriodPicker({
               {t(`period.${p}`)}
             </Chip>
           ))}
+        {custom ? (
         <Chip
           icon={CalendarRange}
           role="radio"
@@ -54,8 +58,9 @@ export function PeriodPicker({
         >
           {t('period.custom')}
         </Chip>
+        ) : null}
       </div>
-      <p className="tabular px-0.5 text-xs text-hint">{label}</p>
+      {custom ? <p className="tabular px-0.5 text-xs text-hint">{label}</p> : null}
       <BottomSheet
         open={open}
         onClose={() => setOpen(false)}

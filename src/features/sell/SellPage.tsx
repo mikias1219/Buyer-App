@@ -1,12 +1,12 @@
 import { PackageX, Search, ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Chip, cn, EmptyState, ErrorState, Input, ListSkeleton, Money, PageHeader, Quantity, toast } from '../../components/ui';
+import { Button, cn, EmptyState, ErrorState, Input, ListSkeleton, Money, PageHeader, Quantity, toast } from '../../components/ui';
 import type { Product } from '../../lib/api/types';
 import { haptic } from '../../lib/telegram';
 import { useDebounced } from '../../lib/useDebounced';
 import { useShopSettings } from '../auth/hooks';
-import { useCategories, useProducts } from '../products/api';
+import { useProducts } from '../products/api';
 import { isWholeUnit } from '../products/logic';
 import { CartSheet } from './components/CartSheet';
 import { cartTotals } from './logic';
@@ -18,10 +18,8 @@ export default function SellPage() {
   const [cart, dispatch] = useCart();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
-  const [categoryId, setCategoryId] = useState('');
   const query = useDebounced(q.trim());
-  const categories = useCategories();
-  const products = useProducts({ ...(query ? { q: query } : {}), ...(categoryId ? { category_id: categoryId } : {}), sort: 'best_selling' });
+  const products = useProducts({ ...(query ? { q: query } : {}), sort: 'best_selling' });
   const items = products.data?.pages.flatMap((p) => p.items) ?? [];
   const totals = cartTotals(cart.lines, cart.discount);
   const allowNegative = Boolean(settings?.allow_negative_stock);
@@ -56,19 +54,6 @@ export default function SellPage() {
     <div className="space-y-3">
       <PageHeader title={t('nav.sell')} subtitle={settings?.shop_name || undefined} />
       <Input type="search" aria-label={t('sell.search')} placeholder={t('sell.search')} leading={<Search aria-hidden className="size-5" />} value={q} onChange={(e) => setQ(e.target.value)} />
-      {categories.data && categories.data.length > 0 ? (
-        <div className="no-scrollbar -mx-4 flex gap-1.5 overflow-x-auto px-4" role="radiogroup" aria-label={t('products.category')}>
-          <Chip role="radio" aria-checked={!categoryId} selected={!categoryId} onClick={() => setCategoryId('')}>
-            {t('products.allCategories')}
-          </Chip>
-          {categories.data.map((c) => (
-            <Chip key={c.id} role="radio" aria-checked={categoryId === c.id} selected={categoryId === c.id} onClick={() => setCategoryId(c.id)}>
-              {c.name}
-            </Chip>
-          ))}
-        </div>
-      ) : null}
-
       {products.isPending ? (
         <ListSkeleton rows={6} />
       ) : products.isError ? (

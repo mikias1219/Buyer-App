@@ -168,6 +168,20 @@ Bottom nav — staff: **Sell · Products · My sales**.
 | Team / Settings | A5.11 / shop name, timezone, defaults, staff permissions, bot options. |
 | No access | For `user` role. |
 
+**Simplified UI (owner request, 2026-10-18).** The app is used by shopkeepers who are not
+system-minded, so the screens show less than the table above:
+- **Dashboard**: Today / Yesterday / This week / This month only. One "Money from sales" card, one
+  "Your profit" card (profit from goods − expenses − lost goods), tiles for running low, stock worth
+  and money owed, then the top 5 best sellers and the running-low list. No filter sheet, charts,
+  breakdowns or slow movers.
+- **Products / Sell / Sales**: no category chips, sort menu, filter sheets or receipt search.
+- **Product form**: name, selling price, buying price, quantity and unit. Photo, barcode, low-stock
+  level and notes sit behind "More options".
+- **Add stock**: only quantity and buying price. **Cart**: no per-item discount. Sale discount and note
+  sit behind one button, and the customer picker only shows for credit.
+- **Categories**: hidden from the UI. The data model and RPCs stay, so they can return later.
+  CSV export and import still read a category column if one is present.
+
 Every screen: loading skeleton, empty state with CTA, error with retry, offline banner. The Sell
 screen disables *Complete sale* while offline (v1 has no offline queue; see open questions).
 
